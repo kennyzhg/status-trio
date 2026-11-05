@@ -168,7 +168,7 @@
 "settings.battery.group.charging" = "Charging";
 "settings.battery.group.powerModes" = "Power Modes";
 "settings.battery.group.power" = "Power";
-"settings.battery.noBatteryNotice" = "This device has no battery, so the battery level is shown as 100 by default.";
+"settings.battery.noBatteryNotice" = "This Mac has no battery, so the top slot is hidden by default. Use Top Slot below to show power or the placeholder 100 instead.";
 "settings.battery.showPercentage" = "Show battery percentage";
 "settings.battery.showChargingIndicator" = "Show an indicator while charging or connected to power";
 "settings.battery.chargingDescription" = "When enabled, the percentage becomes a bolt or plug while charging or connected to power.";

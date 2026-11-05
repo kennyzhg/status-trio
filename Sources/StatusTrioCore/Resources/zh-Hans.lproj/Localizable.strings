@@ -168,7 +168,7 @@
 "settings.battery.group.charging" = "充电";
 "settings.battery.group.powerModes" = "电量模式";
 "settings.battery.group.power" = "功耗";
-"settings.battery.noBatteryNotice" = "当前设备没有电池，所以电量显示默认为 100。";
+"settings.battery.noBatteryNotice" = "这台 Mac 没有电池，顶部槽位默认隐藏。可在下方「顶部槽位」中改为显示功耗或占位的 100。";
 "settings.battery.showPercentage" = "显示电量数字";
 "settings.battery.showChargingIndicator" = "充电/连接电源时显示指示图标";
 "settings.battery.chargingDescription" = "开启后，正在充电或已连接电源时，电量数字会替换为闪电或插头图标；关闭则继续显示数字。";

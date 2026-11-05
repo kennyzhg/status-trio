@@ -168,7 +168,7 @@
 "settings.battery.group.charging" = "Зарядка";
 "settings.battery.group.powerModes" = "Режимы питания";
 "settings.battery.group.power" = "Энергопотребление";
-"settings.battery.noBatteryNotice" = "На этом устройстве нет аккумулятора, поэтому уровень заряда по умолчанию отображается как 100.";
+"settings.battery.noBatteryNotice" = "У этого Mac нет аккумулятора, поэтому верхний слот по умолчанию скрыт. В пункте «Верхний слот» ниже можно включить показ мощности или условного значения 100.";
 "settings.battery.showPercentage" = "Показывать процент заряда";
 "settings.battery.showChargingIndicator" = "Показывать значок при зарядке или питании от сети";
 "settings.battery.chargingDescription" = "Если включено, процент заменяется молнией или вилкой во время зарядки или при питании от сети.";

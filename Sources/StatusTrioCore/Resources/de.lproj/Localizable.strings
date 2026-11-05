@@ -168,7 +168,7 @@
 "settings.battery.group.charging" = "Laden";
 "settings.battery.group.powerModes" = "Energiemodi";
 "settings.battery.group.power" = "Leistung";
-"settings.battery.noBatteryNotice" = "Dieses Gerät hat keinen Akku, daher wird der Batteriestand standardmäßig als 100 angezeigt.";
+"settings.battery.noBatteryNotice" = "Dieser Mac hat keinen Akku, daher ist der obere Platz standardmäßig ausgeblendet. Unter „Oberer Platz“ kannst du stattdessen die Leistung oder den Platzhalter 100 anzeigen.";
 "settings.battery.showPercentage" = "Batterieprozentsatz anzeigen";
 "settings.battery.showChargingIndicator" = "Symbol beim Laden oder Netzbetrieb anzeigen";
 "settings.battery.chargingDescription" = "Wenn aktiviert, wird der Prozentsatz beim Laden oder Netzbetrieb durch ein Blitz- oder Steckersymbol ersetzt.";

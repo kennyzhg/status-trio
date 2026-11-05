@@ -151,7 +151,7 @@
 "settings.battery.group.charging" = "الشحن";
 "settings.battery.group.powerModes" = "أوضاع الطاقة";
 "settings.battery.group.power" = "الطاقة";
-"settings.battery.noBatteryNotice" = "لا يحتوي هذا الجهاز على بطارية، لذا يُعرض مستوى البطارية على أنه 100 افتراضيًا.";
+"settings.battery.noBatteryNotice" = "لا يحتوي جهاز Mac هذا على بطارية، لذا تكون الخانة العلوية مخفية افتراضيًا. استخدم «الخانة العلوية» أدناه لعرض الطاقة أو القيمة النائبة 100.";
 "settings.battery.showPercentage" = "إظهار نسبة البطارية";
 "settings.battery.showChargingIndicator" = "إظهار رمز أثناء الشحن أو الاتصال بالطاقة";
 "settings.battery.chargingDescription" = "عند التفعيل، تتحول النسبة إلى رمز برق أو قابس أثناء الشحن أو الاتصال بالطاقة.";

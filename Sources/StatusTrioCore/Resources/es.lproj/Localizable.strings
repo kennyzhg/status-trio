@@ -168,7 +168,7 @@
 "settings.battery.group.charging" = "Carga";
 "settings.battery.group.powerModes" = "Modos de energía";
 "settings.battery.group.power" = "Consumo";
-"settings.battery.noBatteryNotice" = "Este dispositivo no tiene batería, por lo que el nivel de batería se muestra como 100 de forma predeterminada.";
+"settings.battery.noBatteryNotice" = "Este Mac no tiene batería, así que el espacio superior se oculta de forma predeterminada. Usa «Espacio superior» abajo para mostrar la potencia o el valor de relleno 100.";
 "settings.battery.showPercentage" = "Mostrar porcentaje de batería";
 "settings.battery.showChargingIndicator" = "Mostrar un indicador al cargar o conectar a la corriente";
 "settings.battery.chargingDescription" = "Al activarlo, el porcentaje se convierte en un rayo o un enchufe mientras se carga o está conectado a la corriente.";
