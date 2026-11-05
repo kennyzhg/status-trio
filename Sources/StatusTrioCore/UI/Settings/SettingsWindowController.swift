@@ -190,7 +190,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private func makeWindow() -> NSWindow {
         let contentSize = NSSize(width: SettingsView.width, height: SettingsView.height)
-        let window = NSWindow(
+        let window = SettingsWindow(
             contentRect: NSRect(origin: .zero, size: contentSize),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
