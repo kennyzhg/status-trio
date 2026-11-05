@@ -526,6 +526,14 @@ final class SystemStatusStore: ObservableObject {
         monitorTasks = tasks
         reconcileBluetoothDemand()
 
+        startRefreshLoop()
+    }
+
+    /// The fallback poll. Each cycle reads the current interval, so restarting
+    /// the loop is how a new interval takes effect without waiting out the old
+    /// sleep (#255).
+    private func startRefreshLoop() {
+        refreshTask?.cancel()
         refreshTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 guard let sleep = self?.sleep, let interval = self?.refreshInterval else { return }
@@ -1064,9 +1072,14 @@ final class SystemStatusStore: ObservableObject {
         volumeMonitor.refreshBetterDisplayDevices()
     }
 
+    /// Changes the fallback-poll interval. A running poll drops its current
+    /// wait and starts a full wait at the new interval, so plugging in or
+    /// unplugging applies at once (#255) without an extra refresh tick.
     func setRefreshInterval(_ interval: Duration) {
         guard interval != refreshInterval else { return }
         refreshInterval = interval
+        guard hasStarted, !hasStopped, refreshTask != nil else { return }
+        startRefreshLoop()
     }
 
     func setPopoverVisible(_ visible: Bool) {

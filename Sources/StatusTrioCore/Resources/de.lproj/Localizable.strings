@@ -375,7 +375,10 @@
 "accessibility.battery" = "Batterie %d%%";
 "accessibility.volume" = "Lautstärke %@";
 "settings.refreshInterval" = "Aktualisierungsintervall";
-"settings.refreshInterval.description" = "Wie oft Status Trio auf Änderungen prüft. Häufigere Aktualisierungen erhöhen die CPU-Auslastung.";
+"settings.refreshInterval.description" = "Wie oft Status Trio auf Änderungen prüft – getrennt für Akku- und Netzbetrieb einstellbar. Häufigere Aktualisierungen erhöhen die CPU-Auslastung.";
+"settings.refreshInterval.description.noBattery" = "Wie oft Status Trio auf Änderungen prüft. Häufigere Aktualisierungen erhöhen die CPU-Auslastung.";
+"settings.refreshInterval.onBattery" = "Aktualisierung im Akkubetrieb";
+"settings.refreshInterval.onPower" = "Aktualisierung am Netzteil";
 "settings.refreshInterval.value" = "%d Sekunden";
 "settings.popup.order" = "Angezeigte Elemente";
 "settings.popup.order.description" = "Wähle aus, welche Elemente im Statusbereich erscheinen, und ziehe sie, um die Reihenfolge zu ändern.";

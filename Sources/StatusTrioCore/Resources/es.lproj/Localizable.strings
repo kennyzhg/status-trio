@@ -375,7 +375,10 @@
 "accessibility.battery" = "Batería %d%%";
 "accessibility.volume" = "Volumen %@";
 "settings.refreshInterval" = "Intervalo de actualización";
-"settings.refreshInterval.description" = "Con qué frecuencia Status Trio comprueba cambios. Una actualización más frecuente consume más CPU.";
+"settings.refreshInterval.description" = "Con qué frecuencia Status Trio comprueba cambios; se puede ajustar por separado con batería y con corriente. Una actualización más frecuente consume más CPU.";
+"settings.refreshInterval.description.noBattery" = "Con qué frecuencia Status Trio comprueba cambios. Una actualización más frecuente consume más CPU.";
+"settings.refreshInterval.onBattery" = "Actualizar con batería";
+"settings.refreshInterval.onPower" = "Actualizar con corriente";
 "settings.refreshInterval.value" = "%d segundos";
 "settings.popup.order" = "Elementos mostrados";
 "settings.popup.order.description" = "Elige qué elementos aparecen en el panel de estado y arrástralos para cambiar su orden.";

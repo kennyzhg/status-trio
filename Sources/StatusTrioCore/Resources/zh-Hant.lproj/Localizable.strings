@@ -375,7 +375,10 @@
 "accessibility.battery" = "電池 %d%%";
 "accessibility.volume" = "音量 %@";
 "settings.refreshInterval" = "狀態重新整理間隔";
-"settings.refreshInterval.description" = "Status Trio 檢查狀態變化的頻率。重新整理越快，CPU 使用率越高。";
+"settings.refreshInterval.description" = "Status Trio 檢查狀態變化的頻率，使用電池和接上電源時可以分別設定。重新整理越快，CPU 使用率越高。";
+"settings.refreshInterval.description.noBattery" = "Status Trio 檢查狀態變化的頻率。重新整理越快，CPU 使用率越高。";
+"settings.refreshInterval.onBattery" = "使用電池時重新整理";
+"settings.refreshInterval.onPower" = "接上電源時重新整理";
 "settings.refreshInterval.value" = "%d 秒";
 "settings.popup.order" = "顯示項目";
 "settings.popup.order.description" = "選擇狀態面板顯示的項目，並拖曳調整順序。";

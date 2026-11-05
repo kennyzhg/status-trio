@@ -86,7 +86,7 @@ final class IconAppearancePublisherTests: XCTestCase {
 
         let publishedCount = appearances.count
 
-        settings.refreshIntervalSeconds = 30
+        settings.refreshIntervalOnPowerSeconds = 30
         settings.showsBluetoothBatteryLevels = true
         settings.hasCompletedIconGuideOnboarding = true
         settings.popupScrollAdjustsVolume = false
@@ -146,7 +146,7 @@ final class IconAppearancePublisherTests: XCTestCase {
         XCTAssertEqual(values.last?.testsChargingEffect, true)
 
         let afterIconSettingCount = values.count
-        settings.refreshIntervalSeconds = 30
+        settings.refreshIntervalOnPowerSeconds = 30
         settings.showsBluetoothBatteryLevels = true
         settings.hasCompletedIconGuideOnboarding = true
         settings.dockIconBackgroundPreference = .dark

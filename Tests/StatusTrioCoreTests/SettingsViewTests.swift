@@ -440,6 +440,46 @@ private final class ShortcutSettingsBackend: GlobalShortcutRegistering {
 }
 
 @MainActor
+final class RefreshIntervalGeneralSectionTests: XCTestCase {
+    /// #255: the on-battery slider exists only on a Mac with a battery.
+    func testOnBatteryRowFollowsBatteryPresence() {
+        let suite = "RefreshIntervalGeneralSectionTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { TestUserDefaults.removeSuite(named: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        let localization = Localization()
+
+        func store(_ battery: BatteryStatus) -> SystemStatusStore {
+            SystemStatusStore(
+                batteryMonitor: DummyBatteryMonitor(),
+                wifiMonitor: DummyWiFiMonitor(),
+                volumeMonitor: DummyVolumeMonitor(),
+                initialSnapshot: StatusSnapshot(battery: battery, wifi: .placeholder, volume: .placeholder)
+            )
+        }
+        let laptop = BatteryStatus(rawPercentage: 50, isPresent: true, isCharging: false,
+                                   isLowPowerMode: false, isConnectedToPower: false)
+        let desktop = BatteryStatus(rawPercentage: nil, isPresent: false, isCharging: false,
+                                    isLowPowerMode: false, isConnectedToPower: true)
+
+        XCTAssertTrue(GeneralSectionView(store: settings, localization: localization).showsOnBatteryRefreshInterval)
+        XCTAssertTrue(GeneralSectionView(store: settings, localization: localization,
+                                         statusStore: store(laptop)).showsOnBatteryRefreshInterval)
+        XCTAssertFalse(GeneralSectionView(store: settings, localization: localization,
+                                          statusStore: store(desktop)).showsOnBatteryRefreshInterval)
+    }
+
+    func testEveryLanguageNamesBothSlidersDistinctly() {
+        let localization = Localization()
+        let onBattery = localization.string(.settingsRefreshIntervalOnBattery)
+        let onPower = localization.string(.settingsRefreshIntervalOnPower)
+        XCTAssertFalse(onBattery.isEmpty)
+        XCTAssertNotEqual(onBattery, onPower)
+        XCTAssertNotEqual(onBattery, localization.string(.settingsRefreshInterval))
+    }
+}
+
+@MainActor
 private func makeStatusStore() -> SystemStatusStore {
     SystemStatusStore(
         batteryMonitor: DummyBatteryMonitor(),
