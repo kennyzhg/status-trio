@@ -16,7 +16,8 @@ enum IconPresentationMapper {
                 inputs.snapshot.battery,
                 isHighPowerMode: inputs.isHighPowerMode,
                 options: configuration.battery,
-                closesRing: closesRing
+                closesRing: closesRing,
+                topSlot: topSlotState(inputs: inputs, options: configuration.battery, now: now)
             ),
             center: centerState(inputs: inputs, configuration: configuration, now: now),
             footer: footerState(inputs.snapshot.volume, options: configuration.volume,
@@ -26,11 +27,56 @@ enum IconPresentationMapper {
         )
     }
 
+    /// What the ring's top gap carries once the #274 choice is resolved.
+    private enum TopSlotState {
+        /// The historical battery gap: percentage, bolt, plug or nothing.
+        case battery
+        /// Closed: the slot is hidden.
+        case hidden
+        /// A text value that replaces the battery content (watts or `--`).
+        case text(String)
+    }
+
+    /// Resolves the top slot (#274).
+    ///
+    /// `.automatic` follows the runtime battery reading, so a Mac mini drops
+    /// the meaningless `100` while a laptop keeps its level. `.power` shows
+    /// fresh integer watts; without a fresh reading a battery Mac falls back to
+    /// its battery status and a Mac with no battery shows `--` — never a fake
+    /// `0` and never an invented percentage.
+    private static func topSlotState(
+        inputs: IconPresentationInputs,
+        options: BatteryIconOptions,
+        now: Date
+    ) -> TopSlotState {
+        let battery = inputs.snapshot.battery
+        switch options.topSlotContent.resolved(hasBattery: battery.isPresent) {
+        case .automatic, .battery:
+            return .battery
+        case .hidden:
+            return .hidden
+        case .power:
+            if let watts = freshWatts(inputs.systemPower, now: now) {
+                return .text("\(watts)")
+            }
+            return battery.isPresent ? .battery : .text("--")
+        }
+    }
+
+    /// Integer watts, no unit, laid out for at most three digits, or `nil`
+    /// when there is no fresh finite reading. Clamped in Double space so a
+    /// pathological sample can never trap an Int conversion.
+    private static func freshWatts(_ sample: SystemPowerSample?, now: Date) -> Int? {
+        guard let sample, sample.isFresh(at: now), sample.watts.isFinite else { return nil }
+        return Int(min(999, max(0, sample.watts)).rounded())
+    }
+
     private static func batteryState(
         _ battery: BatteryStatus,
         isHighPowerMode: Bool,
         options: BatteryIconOptions,
-        closesRing: Bool
+        closesRing: Bool,
+        topSlot: TopSlotState
     ) -> OuterRingState {
         let role = options.usesStatusColors
             ? StatusMappings.batteryColorRole(
@@ -47,7 +93,12 @@ enum IconPresentationMapper {
         case .charging: .powered
         }
 
-        let gapContent = StatusMappings.batteryGapContent(battery, options: options)
+        // A hidden slot behaves like an empty gap; a replaced slot never shows
+        // the battery glyphs, so the bolt heartbeat below cannot pulse on it.
+        let gapContent: BatteryGapContent = switch topSlot {
+        case .battery: StatusMappings.batteryGapContent(battery, options: options)
+        case .hidden, .text: .empty
+        }
         let gapStyle: RingGapStyle = switch gapContent {
         case .empty: .closed
         case .percentage: .value
@@ -55,12 +106,20 @@ enum IconPresentationMapper {
         }
         // The "inside the ring" mode draws its status in the middle slot, so the
         // top gap closes and its own accessory (percentage/bolt/plug) is not
-        // drawn — otherwise the same value would appear twice.
-        let gap: RingGapStyle = closesRing ? .closed : gapStyle
+        // drawn — otherwise the same value would appear twice. It only
+        // displaces the battery content; a replaced top slot keeps its value.
+        let replacementText: String? = if case .text(let text) = topSlot { text } else { nil }
+        let centerClosesRing = closesRing && replacementText == nil
+        let gap: RingGapStyle
         let accessory: RingAccessoryState?
-        if closesRing {
+        if let replacementText {
+            gap = .value
+            accessory = .text(IconTextState(text: replacementText, color: .primary, scale: options.textScale))
+        } else if centerClosesRing {
+            gap = .closed
             accessory = nil
         } else {
+            gap = gapStyle
             accessory = switch gapContent {
             case .empty: nil
             case .percentage:
@@ -108,7 +167,7 @@ enum IconPresentationMapper {
             strokeScale: options.ringStrokeScale,
             // `.split` only has meaning while a top gap consumes progress, so a
             // closed ring keeps the historical 0–100% arc.
-            gapProgressMode: closesRing || !options.splitGapProgress ? .absorbed : .split
+            gapProgressMode: centerClosesRing || !options.splitGapProgress ? .absorbed : .split
         )
     }
 
@@ -133,13 +192,7 @@ enum IconPresentationMapper {
         // handled above when the warning toggle is on.
         if connectionOptions.centerSource == .power {
             let textScale = connectionOptions.wifiScale
-            if let sample = inputs.systemPower,
-               sample.isFresh(at: now),
-               sample.watts.isFinite {
-                // Integer watts, no unit, laid out for at most three digits.
-                // Clamp in Double space so a pathological sample can never trap
-                // an Int conversion.
-                let watts = Int(min(999, max(0, sample.watts)).rounded())
+            if let watts = freshWatts(inputs.systemPower, now: now) {
                 return .text(IconTextState(text: "\(watts)", color: .primary, scale: textScale))
             }
             // Never a fake 0 W. A battery Mac may still show its level; a Mac

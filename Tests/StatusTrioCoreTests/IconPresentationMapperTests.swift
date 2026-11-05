@@ -54,8 +54,10 @@ final class IconPresentationMapperTests: XCTestCase {
     }
 
     func testBatteryGapHonorsPresencePercentageAndPowerOptions() {
+        // `.battery` pins the historical look; `.automatic` hides the slot on
+        // a Mac with no battery instead (#274, BatteryTopSlotTests).
         let options = BatteryIconOptions(showsPercentage: true, showsChargingIndicator: true,
-                                         connectedIndicator: .percentage)
+                                         connectedIndicator: .percentage, topSlotContent: .battery)
         let connectedFull = BatteryStatus(rawPercentage: 100, isPresent: true, isCharging: false,
                                           isCharged: true, isLowPowerMode: false, isConnectedToPower: true)
         let absent = BatteryStatus(rawPercentage: 42, isPresent: false, isCharging: false,
@@ -590,7 +592,10 @@ final class IconPresentationMapperTests: XCTestCase {
     func testChargingStatusFallsBackToNetworkWithoutABattery() {
         let absent = BatteryStatus(rawPercentage: nil, isPresent: false, isCharging: false,
                                    isLowPowerMode: false, isConnectedToPower: true)
-        let scene = chargingScene(battery: absent, source: .chargingStatus)
+        // Pin the battery top slot: under `.automatic` a Mac with no battery
+        // closes the gap for its own reason (#274), not this mode's.
+        let scene = chargingScene(battery: absent, source: .chargingStatus,
+                                  batteryOptions: BatteryIconOptions(topSlotContent: .battery))
         // A machine with no battery has no status to invent and no ring to close.
         XCTAssertNotEqual(scene.outerRing?.gap, .closed)
         guard case .symbol? = scene.center else {

@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "プラグ";
 "settings.battery.connectedIndicator.bolt" = "稲妻";
 "settings.battery.connectedIndicator.percentage" = "パーセント";
+"settings.battery.topSlot" = "上部スロット";
+"settings.battery.topSlotDescription" = "リング上部に表示する内容を選択します。「自動」はバッテリー搭載の Mac ではバッテリー状態を表示し、内蔵バッテリーのない Mac ではスロットを隠します。";
+"settings.battery.topSlot.automatic" = "自動";
+"settings.battery.topSlot.battery" = "バッテリー";
+"settings.battery.topSlot.hidden" = "非表示";
+"settings.battery.topSlot.power" = "消費電力（W）";
 "settings.battery.symbolScale" = "残量/稲妻のサイズ";
 "settings.battery.symbolScaleAccessibility" = "バッテリー残量と稲妻のサイズ";
 "settings.battery.symbolScaleDescription" = "残量と稲妻は同じサイズを使用します。";

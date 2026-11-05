@@ -516,9 +516,16 @@ final class IconSceneRendererParityTests: XCTestCase {
             ("custom critical threshold", battery(percentage: 28), BatteryIconOptions(
                 criticalThreshold: 30, ringStrokeScale: 1
             ), ring(progress: 0.28, color: .critical, gap: .value, accessory: .text(IconTextState(text: "28", color: .primary, scale: 1.8)), strokeScale: 1)),
+            // `.battery` pins the historical placeholder; `.automatic` (the
+            // default) hides the top slot on a Mac with no battery (#274).
             ("absent battery", BatteryStatus(rawPercentage: nil, isPresent: false, isCharging: false,
-                                              isLowPowerMode: false, isConnectedToPower: false), .standard,
-             placeholderRing)
+                                              isLowPowerMode: false, isConnectedToPower: false),
+             BatteryIconOptions(topSlotContent: .battery),
+             placeholderRing),
+            ("absent battery automatic top slot", BatteryStatus(rawPercentage: nil, isPresent: false, isCharging: false,
+                                                                 isLowPowerMode: false, isConnectedToPower: false),
+             .standard,
+             ring(progress: 1, color: .primary, gap: .closed, accessory: nil))
         ]
         for (name, status, options, expectedRing) in batteryCases {
             cases.append(visualCase(

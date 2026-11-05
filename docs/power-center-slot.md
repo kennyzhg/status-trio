@@ -47,6 +47,9 @@ value; a value that stops refreshing cannot be mistaken for a current one.
 
 ## No-battery Macs (issue #192)
 
+The ring's top slot can carry the same watts, or be hidden, on any Mac; see
+`docs/battery-top-slot.md` (issue #274).
+
 The whole-machine total is the only power source a Mac mini has. The panel and
 details page adapt instead of hiding the module:
 

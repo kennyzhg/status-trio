@@ -311,11 +311,17 @@ final class StatusBarController: NSObject {
         // The icon is the surface that keeps wanting watts while the panel is
         // closed. Its demand keeps the shared sampler at the idle cadence; the
         // panel and details page add their own faster demands.
-        powerDemandCancellable = settings.$connectionCenterSource
+        // The top slot (#274) can carry the same watts, so either choice keeps
+        // the one shared icon demand alive.
+        powerDemandCancellable = Publishers.CombineLatest(
+            settings.$connectionCenterSource.removeDuplicates(),
+            settings.$batteryTopSlotContent.removeDuplicates()
+        )
+            .map { center, topSlot in center.needsPowerSampling || topSlot.needsPowerSampling }
             .removeDuplicates()
-            .sink { [weak self] source in
+            .sink { [weak self] needsPower in
                 guard let self else { return }
-                if source.needsPowerSampling {
+                if needsPower {
                     self.store.powerSampling.begin(.icon)
                 } else {
                     self.store.powerSampling.end(.icon)

@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "Spina";
 "settings.battery.connectedIndicator.bolt" = "Fulmine";
 "settings.battery.connectedIndicator.percentage" = "Percentuale";
+"settings.battery.topSlot" = "Slot superiore";
+"settings.battery.topSlotDescription" = "Cosa mostra la parte superiore dell’anello. «Automatico» mostra la batteria su un Mac che ne ha una e nasconde lo slot su un Mac senza batteria.";
+"settings.battery.topSlot.automatic" = "Automatico";
+"settings.battery.topSlot.battery" = "Batteria";
+"settings.battery.topSlot.hidden" = "Nascosto";
+"settings.battery.topSlot.power" = "Potenza (watt)";
 "settings.battery.symbolScale" = "Dimensione percentuale/fulmine";
 "settings.battery.symbolScaleAccessibility" = "Dimensione percentuale batteria e fulmine";
 "settings.battery.symbolScaleDescription" = "Percentuale e fulmine usano la stessa dimensione.";

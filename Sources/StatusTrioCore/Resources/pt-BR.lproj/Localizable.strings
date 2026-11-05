@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "Plugue";
 "settings.battery.connectedIndicator.bolt" = "Raio";
 "settings.battery.connectedIndicator.percentage" = "Porcentagem";
+"settings.battery.topSlot" = "Espaço superior";
+"settings.battery.topSlotDescription" = "O que o topo do anel mostra. “Automático” mostra a bateria em um Mac com bateria e oculta o espaço em um Mac sem bateria.";
+"settings.battery.topSlot.automatic" = "Automático";
+"settings.battery.topSlot.battery" = "Bateria";
+"settings.battery.topSlot.hidden" = "Oculto";
+"settings.battery.topSlot.power" = "Potência (watts)";
 "settings.battery.symbolScale" = "Tamanho da porcentagem/raio";
 "settings.battery.symbolScaleAccessibility" = "Tamanho da porcentagem e do raio da bateria";
 "settings.battery.symbolScaleDescription" = "A porcentagem e o raio usam o mesmo tamanho.";

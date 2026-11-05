@@ -50,6 +50,9 @@ final class SettingsStore: ObservableObject {
     static let showsChargingBoltHeartbeatDefaultsKey = "showsChargingBoltHeartbeat"
     static let batterySplitGapProgressDefaultsKey = "batterySplitGapProgress"
     static let batteryConnectedIndicatorDefaultsKey = "batteryConnectedIndicator"
+    /// Raw value of `BatteryTopSlotContent` (#274). Missing or unknown values
+    /// decode as `.automatic`.
+    static let batteryTopSlotContentDefaultsKey = "batteryTopSlotContent"
     /// Legacy boolean replaced by `batteryConnectedIndicator`; read once for
     /// migration and never written again (#195).
     static let showsPercentageWhenConnectedDefaultsKey = "showsPercentageWhenConnected"
@@ -449,6 +452,16 @@ final class SettingsStore: ObservableObject {
             defaults.set(
                 batteryConnectedIndicator.rawValue,
                 forKey: Self.batteryConnectedIndicatorDefaultsKey
+            )
+        }
+    }
+
+    /// What the ring's top slot shows (#274). Shared by the menu bar and Dock.
+    @Published var batteryTopSlotContent: BatteryTopSlotContent {
+        didSet {
+            defaults.set(
+                batteryTopSlotContent.rawValue,
+                forKey: Self.batteryTopSlotContentDefaultsKey
             )
         }
     }
@@ -1552,7 +1565,8 @@ final class SettingsStore: ObservableObject {
             fullThreshold: Int(batteryFullThreshold.rounded()),
             textScale: batterySymbolScale * BatteryIconOptions.defaultTextScale,
             ringStrokeScale: ringStrokeStyle.scale,
-            batteryStatusColors: batteryStatusColors
+            batteryStatusColors: batteryStatusColors,
+            topSlotContent: batteryTopSlotContent
         )
     }
 
@@ -1829,6 +1843,10 @@ final class SettingsStore: ObservableObject {
                 forKey: Self.batteryConnectedIndicatorDefaultsKey
             )
         }
+        self.batteryTopSlotContent = defaults
+            .string(forKey: Self.batteryTopSlotContentDefaultsKey)
+            .flatMap(BatteryTopSlotContent.init(rawValue:))
+            ?? .automatic
         self.usesBatteryStatusColors = defaults.object(forKey: Self.usesBatteryStatusColorsDefaultsKey) as? Bool ?? true
         self.batteryStatusColors = BatteryStatusColors(
             charging: BatteryStatusColorSelection(

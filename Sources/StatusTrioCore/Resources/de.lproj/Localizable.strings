@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "Stecker";
 "settings.battery.connectedIndicator.bolt" = "Blitz";
 "settings.battery.connectedIndicator.percentage" = "Prozentwert";
+"settings.battery.topSlot" = "Oberer Platz";
+"settings.battery.topSlotDescription" = "Was oben im Ring angezeigt wird. „Automatisch“ zeigt auf einem Mac mit Batterie den Batteriestatus und blendet den Platz auf einem Mac ohne Batterie aus.";
+"settings.battery.topSlot.automatic" = "Automatisch";
+"settings.battery.topSlot.battery" = "Batterie";
+"settings.battery.topSlot.hidden" = "Ausgeblendet";
+"settings.battery.topSlot.power" = "Leistung (Watt)";
 "settings.battery.symbolScale" = "Größe von Prozentsatz/Blitz";
 "settings.battery.symbolScaleAccessibility" = "Größe von Batterieprozentsatz und Blitz";
 "settings.battery.symbolScaleDescription" = "Prozentsatz und Blitz verwenden dieselbe Größe.";

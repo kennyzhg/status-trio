@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "插头";
 "settings.battery.connectedIndicator.bolt" = "闪电";
 "settings.battery.connectedIndicator.percentage" = "电量数字";
+"settings.battery.topSlot" = "顶部槽位";
+"settings.battery.topSlotDescription" = "选择圆环顶部显示的内容。「自动」在有电池的 Mac 上显示电池状态，在没有内置电池的 Mac 上隐藏该槽位。";
+"settings.battery.topSlot.automatic" = "自动";
+"settings.battery.topSlot.battery" = "电池";
+"settings.battery.topSlot.hidden" = "隐藏";
+"settings.battery.topSlot.power" = "功耗（瓦）";
 "settings.battery.symbolScale" = "电量数字/闪电大小";
 "settings.battery.symbolScaleAccessibility" = "电量数字和闪电大小";
 "settings.battery.symbolScaleDescription" = "数字和闪电使用同一尺寸，调整这里会同步改变两者。";

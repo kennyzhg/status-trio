@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "Plug";
 "settings.battery.connectedIndicator.bolt" = "Bolt";
 "settings.battery.connectedIndicator.percentage" = "Percentage";
+"settings.battery.topSlot" = "Top Slot";
+"settings.battery.topSlotDescription" = "What the top of the ring shows. Automatic shows the battery on a Mac with a battery and hides the slot on a Mac without one.";
+"settings.battery.topSlot.automatic" = "Automatic";
+"settings.battery.topSlot.battery" = "Battery";
+"settings.battery.topSlot.hidden" = "Hidden";
+"settings.battery.topSlot.power" = "Power (Watts)";
 "settings.battery.symbolScale" = "Percentage/bolt size";
 "settings.battery.symbolScaleAccessibility" = "Battery percentage and bolt size";
 "settings.battery.symbolScaleDescription" = "The percentage and bolt share this size.";

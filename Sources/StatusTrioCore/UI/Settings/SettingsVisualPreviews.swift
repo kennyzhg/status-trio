@@ -273,7 +273,8 @@ struct RingStrokeStylePreview: View {
                     fullThreshold: Int(store.batteryFullThreshold.rounded()),
                     textScale: store.batterySymbolScale * BatteryIconOptions.defaultTextScale,
                     ringStrokeScale: style.scale,
-                    batteryStatusColors: store.batteryStatusColors
+                    batteryStatusColors: store.batteryStatusColors,
+                    topSlotContent: store.batteryTopSlotContent
                 ),
                 connection: store.connectionIconOptions,
                 volume: VolumeIconOptions(

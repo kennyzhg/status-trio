@@ -189,6 +189,12 @@
 "settings.battery.connectedIndicator.plug" = "플러그";
 "settings.battery.connectedIndicator.bolt" = "번개";
 "settings.battery.connectedIndicator.percentage" = "백분율";
+"settings.battery.topSlot" = "상단 슬롯";
+"settings.battery.topSlotDescription" = "링 상단에 표시할 내용을 선택합니다. '자동'은 배터리가 있는 Mac에서는 배터리 상태를 표시하고, 내장 배터리가 없는 Mac에서는 슬롯을 숨깁니다.";
+"settings.battery.topSlot.automatic" = "자동";
+"settings.battery.topSlot.battery" = "배터리";
+"settings.battery.topSlot.hidden" = "숨김";
+"settings.battery.topSlot.power" = "전력(와트)";
 "settings.battery.symbolScale" = "잔량/번개 크기";
 "settings.battery.symbolScaleAccessibility" = "배터리 잔량 및 번개 크기";
 "settings.battery.symbolScaleDescription" = "잔량과 번개는 같은 크기를 사용합니다.";

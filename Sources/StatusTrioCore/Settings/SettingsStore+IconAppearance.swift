@@ -91,6 +91,11 @@ extension SettingsStore {
             updated.batteryStatusColors = colors
             return updated
         }
+        .combineLatest($batteryTopSlotContent) { inputs, topSlotContent in
+            var updated = inputs
+            updated.topSlotContent = topSlotContent
+            return updated
+        }
         .eraseToAnyPublisher()
     }
 
@@ -152,6 +157,7 @@ private struct BatteryAppearanceInputs {
     var splitGapProgress: Bool
     var fullThreshold: Double
     var batteryStatusColors: BatteryStatusColors
+    var topSlotContent: BatteryTopSlotContent = .automatic
 
     func options(ringStrokeScale: Double) -> BatteryIconOptions {
         BatteryIconOptions(
@@ -166,7 +172,8 @@ private struct BatteryAppearanceInputs {
             fullThreshold: Int(fullThreshold.rounded()),
             textScale: symbolScale * BatteryIconOptions.defaultTextScale,
             ringStrokeScale: ringStrokeScale,
-            batteryStatusColors: batteryStatusColors
+            batteryStatusColors: batteryStatusColors,
+            topSlotContent: topSlotContent
         )
     }
 }

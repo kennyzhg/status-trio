@@ -43,6 +43,19 @@ struct BatterySectionView: View {
     /// Everything that changes how the battery is drawn.
     private var iconGroup: some View {
         SettingsGroup(localization.string(.settingsBatteryGroupIcon)) {
+            // What the ring's top slot carries (#274).
+            SettingsMenuRow(
+                symbol: "circle.dashed",
+                tint: .indigo,
+                title: localization.string(.settingsBatteryTopSlot),
+                subtitle: localization.string(.settingsBatteryTopSlotDescription),
+                selection: $store.batteryTopSlotContent,
+                options: BatteryTopSlotContent.allCases,
+                label: topSlotLabel
+            )
+
+            SettingsDivider()
+
             // Show Percentage Switch
             SettingsToggleRow(
                 symbol: "percent",
@@ -584,7 +597,20 @@ struct BatterySectionView: View {
         .foregroundColor(helper.isReady ? Color.green : Color.secondary)
     }
 
-    private func connectedIndicatorLabel(_ indicator: BatteryConnectedIndicator) -> String {
+    private func topSlotLabel(_ content: BatteryTopSlotContent) -> String {
+        switch content {
+        case .automatic:
+            localization.string(.settingsBatteryTopSlotAutomatic)
+        case .battery:
+            localization.string(.settingsBatteryTopSlotBattery)
+        case .hidden:
+            localization.string(.settingsBatteryTopSlotHidden)
+        case .power:
+            localization.string(.settingsBatteryTopSlotPower)
+        }
+    }
+
+        private func connectedIndicatorLabel(_ indicator: BatteryConnectedIndicator) -> String {
         switch indicator {
         case .plug:
             localization.string(.settingsBatteryConnectedIndicatorPlug)
