@@ -11,6 +11,9 @@ struct PopoverSectionView: View {
             backgroundStyleGroup
             scrollDirectionGroup
             popupOrderGroup
+            if store.enabledPopupSections.contains(.weather) {
+                WeatherSettingsGroup(store: store)
+            }
             openBehaviorGroup
         }
     }

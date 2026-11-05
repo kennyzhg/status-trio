@@ -147,6 +147,11 @@ final class SettingsStore: ObservableObject {
     /// The fallback-poll interval while connected to power, and always on a Mac
     /// with no battery (#255).
     static let refreshIntervalOnPowerDefaultsKey = "statusRefreshIntervalOnPowerSeconds"
+    /// QWeather account API Host. The API key is in the Keychain, never here.
+    static let weatherAPIHostDefaultsKey = "weatherAPIHost"
+    static let weatherLocationModeDefaultsKey = "weatherLocationMode"
+    /// JSON-encoded `WeatherLocation` picked by city search.
+    static let weatherManualLocationDefaultsKey = "weatherManualLocation"
 
     static let outputDeviceLimitRange: ClosedRange<Int> = 1...20
     static let defaultMaxVisibleOutputDevices = 5
@@ -183,7 +188,7 @@ final class SettingsStore: ObservableObject {
     /// Default order of the status-panel sections. Display brightness sits below
     /// the audio-input row so the two device-level controls stay together.
     static let defaultPopupSectionOrder: [PopupSection] = [
-        .battery, .network, .vpn, .bluetooth, .volume, .audioInput, .brightness, .inputSource
+        .battery, .network, .vpn, .bluetooth, .volume, .audioInput, .brightness, .inputSource, .weather
     ]
     static let defaultEnabledPopupSections: Set<PopupSection> = [.battery, .network, .vpn, .volume]
     /// Set once the VPN row has been offered to a stored section list.
@@ -892,6 +897,31 @@ final class SettingsStore: ObservableObject {
             defaults.set(ringStrokeStyle.rawValue, forKey: Self.ringStrokeStyleDefaultsKey)
         }
     }
+
+    @Published var weatherAPIHost: String {
+        didSet { defaults.set(weatherAPIHost, forKey: Self.weatherAPIHostDefaultsKey) }
+    }
+
+    @Published var weatherLocationMode: WeatherLocationMode {
+        didSet { defaults.set(weatherLocationMode.rawValue, forKey: Self.weatherLocationModeDefaultsKey) }
+    }
+
+    /// The city picked in Settings: the manual location, and the automatic
+    /// mode's fallback.
+    @Published var weatherManualLocation: WeatherLocation? {
+        didSet {
+            if let weatherManualLocation,
+               let data = try? JSONEncoder().encode(weatherManualLocation) {
+                defaults.set(data, forKey: Self.weatherManualLocationDefaultsKey)
+            } else {
+                defaults.removeObject(forKey: Self.weatherManualLocationDefaultsKey)
+            }
+        }
+    }
+
+    /// Bumped after the API key changes in the Keychain so the forecast is
+    /// re-read. Not persisted.
+    @Published var weatherCredentialRevision = 0
 
     /// Fallback-poll interval while the Mac runs on battery (#255).
     @Published var refreshIntervalOnBatterySeconds: Double {
@@ -2074,6 +2104,12 @@ final class SettingsStore: ObservableObject {
         self.ringStrokeStyle = storedRingStrokeStyle
             .flatMap(RingStrokeStyle.init(rawValue:))
             ?? Self.defaultRingStrokeStyle
+        self.weatherAPIHost = defaults.string(forKey: Self.weatherAPIHostDefaultsKey) ?? ""
+        self.weatherLocationMode = defaults.string(forKey: Self.weatherLocationModeDefaultsKey)
+            .flatMap(WeatherLocationMode.init(rawValue:)) ?? .automatic
+        self.weatherManualLocation = defaults.data(forKey: Self.weatherManualLocationDefaultsKey)
+            .flatMap { try? JSONDecoder().decode(WeatherLocation.self, from: $0) }
+            .flatMap { $0.isValid ? $0 : nil }
         // #255: a missing split key inherits the old single interval, so an
         // upgrading user keeps the cadence they chose; a fresh install starts
         // at 15 s on battery and 5 s on power.

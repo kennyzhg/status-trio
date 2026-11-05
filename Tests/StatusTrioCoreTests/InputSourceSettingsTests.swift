@@ -53,7 +53,9 @@ final class InputSourceSettingsTests: XCTestCase {
 
         let store = SettingsStore(defaults: suite.defaults)
 
-        XCTAssertEqual(store.popupSectionOrder.last, .inputSource)
+        // Appended after the stored sections; the later Weather section
+        // follows it in the canonical order.
+        XCTAssertEqual(store.popupSectionOrder.suffix(2), [.inputSource, .weather])
         XCTAssertEqual(store.popupSectionOrder.first, .volume)
         XCTAssertFalse(store.enabledPopupSections.contains(.inputSource))
         XCTAssertEqual(store.visiblePopupSections, [.volume, .battery])

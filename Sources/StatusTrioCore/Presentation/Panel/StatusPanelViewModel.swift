@@ -40,6 +40,7 @@ final class StatusPanelViewModel: ObservableObject {
         static let inputSource = Self(rawValue: 1 << 3)
         static let vpn = Self(rawValue: 1 << 4)
         static let localIP = Self(rawValue: 1 << 5)
+        static let weather = Self(rawValue: 1 << 6)
     }
     @Published private(set) var battery: PanelSummaryState
     @Published private(set) var network: PanelSummaryState
@@ -61,6 +62,7 @@ final class StatusPanelViewModel: ObservableObject {
     @Published private(set) var brightness: BrightnessPanelState
     @Published private(set) var audioInput: AudioInputPanelState
     @Published private(set) var inputSource: InputSourcePanelState
+    @Published private(set) var weather: WeatherPanelState = .empty
     @Published private(set) var batteryDetails: PanelDetailState
     @Published private(set) var wifiDetails: WiFiPanelState
     @Published private(set) var wiredDetails: PanelDetailState
@@ -101,6 +103,10 @@ final class StatusPanelViewModel: ObservableObject {
     let layoutSnapshots: PanelListLayoutSnapshotStore
     private let localization: Localization
     private let inputSourceController: InputSourceController
+    /// Created on first use, so a panel that never shows Weather never builds
+    /// a Keychain reader, a location manager or a network client.
+    private var weatherController: WeatherController?
+    private let makeWeatherController: () -> WeatherController
     private let chargeToFullNow: ChargeToFullNowController?
     private let updateScheduler: any PanelPresentationUpdateScheduling
     let actions: StatusPanelActions
@@ -141,7 +147,8 @@ final class StatusPanelViewModel: ObservableObject {
         actions: StatusPanelActions,
         updateScheduler: any PanelPresentationUpdateScheduling = YieldingPanelPresentationUpdateScheduler(),
         inputSourceController: InputSourceController? = nil,
-        chargeToFullNow: ChargeToFullNowController? = nil
+        chargeToFullNow: ChargeToFullNowController? = nil,
+        weatherController: WeatherController? = nil
     ) {
         let resolvedInputSourceController = inputSourceController ?? InputSourceController()
         self.store = store
@@ -149,6 +156,8 @@ final class StatusPanelViewModel: ObservableObject {
         self.layoutSnapshots = PanelListLayoutSnapshotStore(defaults: settings.userDefaults)
         self.localization = localization
         self.inputSourceController = resolvedInputSourceController
+        self.weatherController = weatherController
+        self.makeWeatherController = { WeatherController(settings: settings) }
         self.chargeToFullNow = chargeToFullNow
         self.updateScheduler = updateScheduler
         self.actions = actions
@@ -794,6 +803,7 @@ final class StatusPanelViewModel: ObservableObject {
         if isVisible(.inputSource) { demand.insert(.inputSource) }
         if isVisible(.vpn) { demand.insert(.vpn) }
         if isVisible(.network) { demand.insert(.localIP) }
+        if isVisible(.weather) { demand.insert(.weather) }
         guard demand != subscribedSourceDemand else { return }
 
         sourceDemandCancellables.removeAll()
@@ -836,6 +846,19 @@ final class StatusPanelViewModel: ObservableObject {
                     publishAudioInput(state)
                 }
                 .store(in: &sourceDemandCancellables)
+        }
+        if demand.contains(.weather) {
+            let controller = resolvedWeatherController()
+            controller.$state
+                .removeDuplicates()
+                .sink { [weak self] state in
+                    guard let self, isVisible(.weather) else { return }
+                    publishWeather(state)
+                }
+                .store(in: &sourceDemandCancellables)
+            // Opening the panel is the only fetch trigger; a recent forecast
+            // for the same configuration is reused.
+            controller.refreshIfNeeded(language: weatherLanguage)
         }
         if demand.contains(.inputSource) {
             Publishers.CombineLatest(
@@ -1186,6 +1209,29 @@ final class StatusPanelViewModel: ObservableObject {
     private func publishAudioInput(_ state: AudioInputPanelState) {
         guard audioInput != state else { return }
         audioInput = state
+    }
+
+    /// The Weather section's refresh button.
+    func refreshWeather() {
+        guard isVisible(.weather) else { return }
+        resolvedWeatherController().refresh(language: weatherLanguage)
+    }
+
+    private var weatherLanguage: String {
+        QWeatherLanguage.code(for: localization.resolvedLanguage)
+    }
+
+    private func resolvedWeatherController() -> WeatherController {
+        if let weatherController { return weatherController }
+        let created = makeWeatherController()
+        weatherController = created
+        return created
+    }
+
+    private func publishWeather(_ state: WeatherState) {
+        let next = WeatherPanelMapper.map(state, localization: localization)
+        guard weather != next else { return }
+        weather = next
     }
 
     private func publishInputSource(

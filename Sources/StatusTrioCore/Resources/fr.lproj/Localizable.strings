@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "Désactiver Wi-Fi ?";
 "wifi.power.offConfirmMessage" = "Le réseau actuel va se déconnecter. Vous pouvez réactiver Wi-Fi depuis ce panneau ou Réglages Système.";
 "wifi.power.offConfirmAction" = "Désactiver";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "Météo";
+"weather.title" = "Météo";
+"weather.today" = "Aujourd’hui";
+"weather.tomorrow" = "Demain";
+"weather.loading" = "Chargement de la météo…";
+"weather.notConfigured" = "Saisissez l’API Host et la clé d’API QWeather dans Réglages › Panneau › Météo.";
+"weather.noLocation" = "Aucune position. Autorisez l’accès à la position ou choisissez une ville dans les réglages.";
+"weather.unauthorized" = "QWeather a refusé la clé d’API ou l’API Host. Vérifiez les réglages.";
+"weather.quotaExceeded" = "Limite de requêtes QWeather atteinte. Réessayez plus tard.";
+"weather.unavailable" = "La météo est indisponible pour le moment.";
+"weather.refresh" = "Actualiser la météo";
+"weather.currentLocation" = "Position actuelle";
+"weather.trend" = "Évolution des températures";
+"settings.weather.group" = "Météo";
+"settings.weather.description" = "Les prévisions proviennent de QWeather. Créez un projet dans la console QWeather et collez ici son API Host et sa clé d’API. Les coordonnées sont arrondies à environ 1 km avant l’envoi.";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "Clé d’API";
+"settings.weather.save" = "Enregistrer";
+"settings.weather.saved" = "Enregistrée dans le trousseau";
+"settings.weather.locationMode" = "Position";
+"settings.weather.locationMode.automatic" = "Automatique, ville en secours";
+"settings.weather.locationMode.manual" = "Ville uniquement";
+"settings.weather.locationMode.description" = "La position automatique utilise l’accès à la position déjà accordé à Status Trio et ne le demande jamais d’elle-même ; sans cet accès, la ville ci-dessous est utilisée.";
+"settings.weather.city" = "Ville";
+"settings.weather.city.placeholder" = "Nom de la ville";
+"settings.weather.city.search" = "Rechercher";
+"settings.weather.city.none" = "Non définie";
+"settings.weather.city.noResults" = "Aucune ville trouvée";

@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "هل تريد إيقاف Wi-Fi؟";
 "wifi.power.offConfirmMessage" = "ستنقطع الشبكة الحالية. يمكنك تشغيل Wi-Fi مرة أخرى من هذه اللوحة أو من إعدادات النظام.";
 "wifi.power.offConfirmAction" = "إيقاف";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "الطقس";
+"weather.title" = "الطقس";
+"weather.today" = "اليوم";
+"weather.tomorrow" = "غدًا";
+"weather.loading" = "جارٍ تحميل الطقس…";
+"weather.notConfigured" = "أضف API Host ومفتاح API الخاصين بـ QWeather من الإعدادات › اللوحة › الطقس.";
+"weather.noLocation" = "لا يوجد موقع. اسمح بالوصول إلى الموقع أو اختر مدينة في الإعدادات.";
+"weather.unauthorized" = "رفض QWeather مفتاح API أو API Host. تحقّق من الإعدادات.";
+"weather.quotaExceeded" = "تم بلوغ حد طلبات QWeather. حاول لاحقًا.";
+"weather.unavailable" = "الطقس غير متاح حاليًا.";
+"weather.refresh" = "تحديث الطقس";
+"weather.currentLocation" = "الموقع الحالي";
+"weather.trend" = "اتجاه درجة الحرارة";
+"settings.weather.group" = "الطقس";
+"settings.weather.description" = "تأتي التوقعات من QWeather. أنشئ مشروعًا في لوحة تحكم QWeather والصق هنا API Host ومفتاح API الخاصين به. تُقرَّب الإحداثيات إلى نحو 1 كم قبل إرسالها.";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "مفتاح API";
+"settings.weather.save" = "حفظ";
+"settings.weather.saved" = "تم الحفظ في سلسلة المفاتيح";
+"settings.weather.locationMode" = "الموقع";
+"settings.weather.locationMode.automatic" = "تلقائي، مع المدينة كبديل";
+"settings.weather.locationMode.manual" = "المدينة فقط";
+"settings.weather.locationMode.description" = "يستخدم الموقع التلقائي إذن الموقع الذي يملكه Status Trio مسبقًا ولا يطلبه بنفسه أبدًا؛ وبدونه تُستخدم المدينة أدناه.";
+"settings.weather.city" = "المدينة";
+"settings.weather.city.placeholder" = "اسم المدينة";
+"settings.weather.city.search" = "بحث";
+"settings.weather.city.none" = "غير محددة";
+"settings.weather.city.noResults" = "لم يتم العثور على مدينة";

@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "Wi-Fi를 끄시겠습니까?";
 "wifi.power.offConfirmMessage" = "현재 네트워크 연결이 해제됩니다. 이 패널이나 시스템 설정에서 Wi-Fi를 다시 켤 수 있습니다.";
 "wifi.power.offConfirmAction" = "끄기";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "날씨";
+"weather.title" = "날씨";
+"weather.today" = "오늘";
+"weather.tomorrow" = "내일";
+"weather.loading" = "날씨를 불러오는 중…";
+"weather.notConfigured" = "설정 › 패널 › 날씨에서 QWeather API Host와 API Key를 입력하세요.";
+"weather.noLocation" = "위치를 확인할 수 없습니다. 위치 접근을 허용하거나 설정에서 도시를 선택하세요.";
+"weather.unauthorized" = "QWeather가 API Key 또는 API Host를 거부했습니다. 설정을 확인하세요.";
+"weather.quotaExceeded" = "QWeather 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.";
+"weather.unavailable" = "지금은 날씨를 가져올 수 없습니다.";
+"weather.refresh" = "날씨 새로 고침";
+"weather.currentLocation" = "현재 위치";
+"weather.trend" = "기온 추이";
+"settings.weather.group" = "날씨";
+"settings.weather.description" = "예보는 QWeather에서 가져옵니다. QWeather 콘솔에서 프로젝트를 만들고 API Host와 API Key를 여기에 붙여 넣으세요. 좌표는 보내기 전에 약 1km 단위로 반올림됩니다.";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "API Key";
+"settings.weather.save" = "저장";
+"settings.weather.saved" = "키체인에 저장됨";
+"settings.weather.locationMode" = "위치";
+"settings.weather.locationMode.automatic" = "자동(실패 시 도시 사용)";
+"settings.weather.locationMode.manual" = "도시만";
+"settings.weather.locationMode.description" = "자동 위치는 Status Trio가 이미 가진 위치 권한을 사용하며 따로 묻지 않습니다. 권한이 없으면 아래 도시를 사용합니다.";
+"settings.weather.city" = "도시";
+"settings.weather.city.placeholder" = "도시 이름";
+"settings.weather.city.search" = "검색";
+"settings.weather.city.none" = "설정 안 됨";
+"settings.weather.city.noResults" = "도시를 찾을 수 없음";

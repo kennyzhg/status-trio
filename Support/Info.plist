@@ -31,9 +31,9 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocationUsageDescription</key>
-	<string>Used to show the current Wi-Fi network name in the popover and, when you open Wi-Fi details, to read network names, scan results, and connection information.</string>
+	<string>Used to show the current Wi-Fi network name in the popover and, when you open Wi-Fi details, to read network names, scan results, and connection information. If you turn on Weather, an approximate location (about 1 km) is also used for the forecast.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Used to show the current Wi-Fi network name in the popover and, when you open Wi-Fi details, to read network names, scan results, and connection information.</string>
+	<string>Used to show the current Wi-Fi network name in the popover and, when you open Wi-Fi details, to read network names, scan results, and connection information. If you turn on Weather, an approximate location (about 1 km) is also used for the forecast.</string>
 	<key>STIncludesPrivilegedHelper</key>
 	<false/>
 	<key>STTelemetryProduction</key>

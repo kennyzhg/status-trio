@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "要关闭 Wi-Fi 吗？";
 "wifi.power.offConfirmMessage" = "当前网络将断开。你可以从此面板或系统设置重新打开 Wi-Fi。";
 "wifi.power.offConfirmAction" = "关闭";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "天气";
+"weather.title" = "天气";
+"weather.today" = "今天";
+"weather.tomorrow" = "明天";
+"weather.loading" = "正在获取天气…";
+"weather.notConfigured" = "请在「设置 › 面板 › 天气」中填写和风天气的 API Host 和 API Key。";
+"weather.noLocation" = "无法获取位置。请允许定位权限，或在设置中选择城市。";
+"weather.unauthorized" = "和风天气拒绝了 API Key 或 API Host，请检查设置。";
+"weather.quotaExceeded" = "和风天气请求次数已达上限，请稍后再试。";
+"weather.unavailable" = "暂时无法获取天气。";
+"weather.refresh" = "刷新天气";
+"weather.currentLocation" = "当前位置";
+"weather.trend" = "温度趋势";
+"settings.weather.group" = "天气";
+"settings.weather.description" = "天气数据来自和风天气（QWeather）。在和风天气控制台创建项目，把 API Host 和 API Key 粘贴到这里。发送前坐标会约简到 1 公里左右。";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "API Key";
+"settings.weather.save" = "保存";
+"settings.weather.saved" = "已保存到钥匙串";
+"settings.weather.locationMode" = "位置";
+"settings.weather.locationMode.automatic" = "自动定位，失败时用城市";
+"settings.weather.locationMode.manual" = "只用城市";
+"settings.weather.locationMode.description" = "自动定位使用 Status Trio 已有的定位权限，不会单独弹窗询问；没有权限时使用下面的城市。";
+"settings.weather.city" = "城市";
+"settings.weather.city.placeholder" = "城市名称";
+"settings.weather.city.search" = "搜索";
+"settings.weather.city.none" = "未设置";
+"settings.weather.city.noResults" = "没有找到这个城市";

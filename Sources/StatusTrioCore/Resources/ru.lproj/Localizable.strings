@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "Выключить Wi-Fi?";
 "wifi.power.offConfirmMessage" = "Текущая сеть будет отключена. Вы можете снова включить Wi-Fi в этой панели или в Системных настройках.";
 "wifi.power.offConfirmAction" = "Выключить";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "Погода";
+"weather.title" = "Погода";
+"weather.today" = "Сегодня";
+"weather.tomorrow" = "Завтра";
+"weather.loading" = "Загрузка погоды…";
+"weather.notConfigured" = "Укажите API Host и API-ключ QWeather в разделе «Настройки › Панель › Погода».";
+"weather.noLocation" = "Нет местоположения. Разрешите доступ к геопозиции или выберите город в настройках.";
+"weather.unauthorized" = "QWeather отклонил API-ключ или API Host. Проверьте настройки.";
+"weather.quotaExceeded" = "Достигнут лимит запросов QWeather. Повторите позже.";
+"weather.unavailable" = "Погода сейчас недоступна.";
+"weather.refresh" = "Обновить погоду";
+"weather.currentLocation" = "Текущее место";
+"weather.trend" = "Ход температуры";
+"settings.weather.group" = "Погода";
+"settings.weather.description" = "Прогноз предоставляет QWeather. Создайте проект в консоли QWeather и вставьте сюда его API Host и API-ключ. Перед отправкой координаты округляются примерно до 1 км.";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "API-ключ";
+"settings.weather.save" = "Сохранить";
+"settings.weather.saved" = "Сохранено в связке ключей";
+"settings.weather.locationMode" = "Местоположение";
+"settings.weather.locationMode.automatic" = "Автоматически, город как запасной";
+"settings.weather.locationMode.manual" = "Только город";
+"settings.weather.locationMode.description" = "Автоматическое местоположение использует уже выданный Status Trio доступ к геопозиции и никогда не запрашивает его само; без доступа используется город ниже.";
+"settings.weather.city" = "Город";
+"settings.weather.city.placeholder" = "Название города";
+"settings.weather.city.search" = "Найти";
+"settings.weather.city.none" = "Не задан";
+"settings.weather.city.noResults" = "Город не найден";

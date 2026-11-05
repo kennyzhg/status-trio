@@ -269,6 +269,11 @@ struct StatusPopoverView: View {
                 onOpen: { panel.showInputSourcePage() },
                 onOpenKeyboardSettings: openKeyboardSettings
             )
+        case .weather:
+            WeatherStatusView(
+                state: panel.weather,
+                onRefresh: { panel.refreshWeather() }
+            )
         }
     }
 

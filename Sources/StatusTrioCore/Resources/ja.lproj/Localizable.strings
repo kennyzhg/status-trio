@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "Wi-Fiをオフにしますか？";
 "wifi.power.offConfirmMessage" = "現在のネットワークが切断されます。このパネルまたはシステム設定からWi-Fiを再度オンにできます。";
 "wifi.power.offConfirmAction" = "オフにする";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "天気";
+"weather.title" = "天気";
+"weather.today" = "今日";
+"weather.tomorrow" = "明日";
+"weather.loading" = "天気を取得中…";
+"weather.notConfigured" = "「設定 › パネル › 天気」で QWeather の API Host と API Key を入力してください。";
+"weather.noLocation" = "位置情報を取得できません。位置情報へのアクセスを許可するか、設定で都市を選んでください。";
+"weather.unauthorized" = "QWeather が API Key または API Host を拒否しました。設定を確認してください。";
+"weather.quotaExceeded" = "QWeather のリクエスト上限に達しました。しばらくしてからお試しください。";
+"weather.unavailable" = "現在、天気を取得できません。";
+"weather.refresh" = "天気を更新";
+"weather.currentLocation" = "現在地";
+"weather.trend" = "気温の推移";
+"settings.weather.group" = "天気";
+"settings.weather.description" = "予報は QWeather から取得します。QWeather コンソールでプロジェクトを作成し、API Host と API Key をここに貼り付けてください。座標は送信前に約 1 km 単位に丸められます。";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "API Key";
+"settings.weather.save" = "保存";
+"settings.weather.saved" = "キーチェーンに保存しました";
+"settings.weather.locationMode" = "場所";
+"settings.weather.locationMode.automatic" = "自動（失敗時は都市を使用）";
+"settings.weather.locationMode.manual" = "都市のみ";
+"settings.weather.locationMode.description" = "自動の場所は Status Trio が既に持つ位置情報の権限を使い、独自に許可を求めることはありません。権限がない場合は下の都市を使います。";
+"settings.weather.city" = "都市";
+"settings.weather.city.placeholder" = "都市名";
+"settings.weather.city.search" = "検索";
+"settings.weather.city.none" = "未設定";
+"settings.weather.city.noResults" = "都市が見つかりません";

@@ -776,3 +776,33 @@
 "wifi.power.offConfirmTitle" = "Turn off Wi-Fi?";
 "wifi.power.offConfirmMessage" = "The current network will disconnect. You can turn Wi-Fi back on from this panel or System Settings.";
 "wifi.power.offConfirmAction" = "Turn Off";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "Weather";
+"weather.title" = "Weather";
+"weather.today" = "Today";
+"weather.tomorrow" = "Tomorrow";
+"weather.loading" = "Loading weather…";
+"weather.notConfigured" = "Add your QWeather API Host and API Key in Settings › Panel › Weather.";
+"weather.noLocation" = "No location. Allow location access or choose a city in Settings.";
+"weather.unauthorized" = "QWeather rejected the API Key or API Host. Check Settings.";
+"weather.quotaExceeded" = "QWeather request limit reached. Try again later.";
+"weather.unavailable" = "Weather is unavailable right now.";
+"weather.refresh" = "Refresh Weather";
+"weather.currentLocation" = "Current Location";
+"weather.trend" = "Temperature trend";
+"settings.weather.group" = "Weather";
+"settings.weather.description" = "Forecasts come from QWeather. Create a project in the QWeather console and paste its API Host and API Key here. Coordinates are rounded to about 1 km before they are sent.";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "API Key";
+"settings.weather.save" = "Save";
+"settings.weather.saved" = "Saved to Keychain";
+"settings.weather.locationMode" = "Location";
+"settings.weather.locationMode.automatic" = "Automatic, with the city as fallback";
+"settings.weather.locationMode.manual" = "City only";
+"settings.weather.locationMode.description" = "Automatic location uses the location access Status Trio already has and never asks on its own; without it, the city below is used.";
+"settings.weather.city" = "City";
+"settings.weather.city.placeholder" = "City name";
+"settings.weather.city.search" = "Search";
+"settings.weather.city.none" = "Not set";
+"settings.weather.city.noResults" = "No city found";

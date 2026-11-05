@@ -778,3 +778,33 @@
 "wifi.power.offConfirmTitle" = "Disattivare Wi-Fi?";
 "wifi.power.offConfirmMessage" = "La rete attuale verrà disconnessa. Puoi riattivare Wi-Fi da questo pannello o dalle Impostazioni di Sistema.";
 "wifi.power.offConfirmAction" = "Disattiva";
+
+/* Weather (QWeather) */
+"settings.popup.order.weather" = "Meteo";
+"weather.title" = "Meteo";
+"weather.today" = "Oggi";
+"weather.tomorrow" = "Domani";
+"weather.loading" = "Caricamento del meteo…";
+"weather.notConfigured" = "Inserisci l’API Host e la chiave API di QWeather in Impostazioni › Pannello › Meteo.";
+"weather.noLocation" = "Nessuna posizione. Consenti l’accesso alla posizione o scegli una città nelle impostazioni.";
+"weather.unauthorized" = "QWeather ha rifiutato la chiave API o l’API Host. Controlla le impostazioni.";
+"weather.quotaExceeded" = "Limite di richieste QWeather raggiunto. Riprova più tardi.";
+"weather.unavailable" = "Il meteo non è disponibile al momento.";
+"weather.refresh" = "Aggiorna il meteo";
+"weather.currentLocation" = "Posizione attuale";
+"weather.trend" = "Andamento della temperatura";
+"settings.weather.group" = "Meteo";
+"settings.weather.description" = "Le previsioni arrivano da QWeather. Crea un progetto nella console di QWeather e incolla qui il suo API Host e la chiave API. Le coordinate vengono arrotondate a circa 1 km prima dell’invio.";
+"settings.weather.apiHost" = "API Host";
+"settings.weather.apiKey" = "Chiave API";
+"settings.weather.save" = "Salva";
+"settings.weather.saved" = "Salvata nel portachiavi";
+"settings.weather.locationMode" = "Posizione";
+"settings.weather.locationMode.automatic" = "Automatica, con la città di riserva";
+"settings.weather.locationMode.manual" = "Solo la città";
+"settings.weather.locationMode.description" = "La posizione automatica usa l’accesso alla posizione già concesso a Status Trio e non lo chiede mai da sola; senza accesso viene usata la città qui sotto.";
+"settings.weather.city" = "Città";
+"settings.weather.city.placeholder" = "Nome della città";
+"settings.weather.city.search" = "Cerca";
+"settings.weather.city.none" = "Non impostata";
+"settings.weather.city.noResults" = "Nessuna città trovata";
