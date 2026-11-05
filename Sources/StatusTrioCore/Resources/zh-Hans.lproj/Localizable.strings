@@ -788,6 +788,7 @@
 "weather.notConfigured" = "请在「设置 › 面板 › 天气」中填写和风天气的 API Host 和 API Key。";
 "weather.noLocation" = "无法获取位置。请允许定位权限，或在设置中选择城市。";
 "weather.unauthorized" = "和风天气拒绝了 API Key 或 API Host，请检查设置。";
+"weather.restricted" = "和风天气的安全设置拒绝了这个请求（例如这个 Key 不允许使用城市搜索）。请在和风天气控制台检查该凭据的 API 限制，或直接输入「纬度,经度」。";
 "weather.quotaExceeded" = "和风天气请求次数已达上限，请稍后再试。";
 "weather.unavailable" = "暂时无法获取天气。";
 "weather.refresh" = "刷新天气";
@@ -804,7 +805,7 @@
 "settings.weather.locationMode.manual" = "只用城市";
 "settings.weather.locationMode.description" = "自动定位使用 Status Trio 已有的定位权限，不会单独弹窗询问；没有权限时使用下面的城市。";
 "settings.weather.city" = "城市";
-"settings.weather.city.placeholder" = "城市名称";
+"settings.weather.city.placeholder" = "城市名或 纬度,经度";
 "settings.weather.city.search" = "搜索";
 "settings.weather.city.none" = "未设置";
 "settings.weather.city.noResults" = "没有找到这个城市";

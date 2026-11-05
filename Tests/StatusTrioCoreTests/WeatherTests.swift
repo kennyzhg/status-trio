@@ -92,11 +92,12 @@ final class QWeatherClientTests: XCTestCase {
 
     func testFailuresMapFromHTTPStatusAndQWeatherCodes() {
         XCTAssertEqual(QWeatherClient.failure(forHTTPStatus: 401), .unauthorized)
-        XCTAssertEqual(QWeatherClient.failure(forHTTPStatus: 403), .unauthorized)
+        XCTAssertEqual(QWeatherClient.failure(forHTTPStatus: 403), .restricted)
         XCTAssertEqual(QWeatherClient.failure(forHTTPStatus: 429), .quotaExceeded)
         XCTAssertEqual(QWeatherClient.failure(forHTTPStatus: 500), .unavailable)
         XCTAssertNil(QWeatherClient.failure(forCode: "200"))
         XCTAssertEqual(QWeatherClient.failure(forCode: "401"), .unauthorized)
+        XCTAssertEqual(QWeatherClient.failure(forCode: "403"), .restricted)
         XCTAssertEqual(QWeatherClient.failure(forCode: "402"), .quotaExceeded)
         XCTAssertEqual(QWeatherClient.failure(forCode: "500"), .unavailable)
         XCTAssertThrowsError(try QWeatherClient.parseForecast(Data(#"{"code":"401"}"#.utf8))) {
@@ -111,6 +112,38 @@ final class QWeatherClientTests: XCTestCase {
         let body = #"{"code":"200","daily":[{"fxDate":"d1","tempMax":"1","tempMin":"0","iconDay":"100","textDay":"a"},{"fxDate":"d2","tempMax":"x","tempMin":"0","iconDay":"100","textDay":"b"},{"fxDate":"d3","tempMax":"3","tempMin":"1","iconDay":"100","textDay":"c"},{"fxDate":"d4","tempMax":"4","tempMin":"2","iconDay":"100","textDay":"d"},{"fxDate":"d5","tempMax":"5","tempMin":"3","iconDay":"100","textDay":"e"}]}"#
         let days = try QWeatherClient.parseForecast(Data(body.utf8))
         XCTAssertEqual(days.map(\.date), ["d1", "d3", "d4"])
+    }
+
+    /// A real key that may call the forecast but not the GeoAPI answers the
+    /// lookup with HTTP 403 "Security Restriction"; that is not a bad key.
+    func testSecurityRestrictionIsReportedAsRestrictedNotUnauthorized() async {
+        let body = #"{"error":{"status":403,"title":"Security Restriction"}}"#
+        let client = QWeatherClient { request in
+            (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: 403, httpVersion: nil, headerFields: nil)!)
+        }
+        do {
+            _ = try await client.lookupCities(
+                named: "北京",
+                credentials: QWeatherCredentials(host: "abc.qweatherapi.com", apiKey: "k"),
+                language: "zh"
+            )
+            XCTFail("expected restricted")
+        } catch {
+            XCTAssertEqual(error as? WeatherFailure, .restricted)
+        }
+    }
+
+    func testCoordinatesCanBeEnteredWithoutALookup() throws {
+        let beijing = try XCTUnwrap(WeatherLocation.coordinates(from: " 39.92, 116.41 "))
+        XCTAssertEqual(beijing.latitude, 39.92, accuracy: 0.0001)
+        XCTAssertEqual(beijing.longitude, 116.41, accuracy: 0.0001)
+        XCTAssertEqual(beijing.queryValue, "116.41,39.92")
+        XCTAssertEqual(beijing.name, "39.92, 116.41")
+        XCTAssertNotNil(WeatherLocation.coordinates(from: "39.92，116.41"))
+        XCTAssertNotNil(WeatherLocation.coordinates(from: "39.92 116.41"))
+        XCTAssertNil(WeatherLocation.coordinates(from: "北京"))
+        XCTAssertNil(WeatherLocation.coordinates(from: "95,10"), "latitude out of range")
+        XCTAssertNil(WeatherLocation.coordinates(from: "1,2,3"))
     }
 
     func testCityLookupParsesRegionsAndTreatsNotFoundAsEmpty() throws {

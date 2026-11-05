@@ -788,6 +788,7 @@
 "weather.notConfigured" = "أضف API Host ومفتاح API الخاصين بـ QWeather من الإعدادات › اللوحة › الطقس.";
 "weather.noLocation" = "لا يوجد موقع. اسمح بالوصول إلى الموقع أو اختر مدينة في الإعدادات.";
 "weather.unauthorized" = "رفض QWeather مفتاح API أو API Host. تحقّق من الإعدادات.";
+"weather.restricted" = "رفضت إعدادات الأمان في QWeather هذا الطلب (مثلًا قد لا يُسمح للمفتاح باستخدام البحث عن المدن). تحقّق من قيود API للمفتاح في لوحة تحكم QWeather، أو أدخل «خط العرض,خط الطول».";
 "weather.quotaExceeded" = "تم بلوغ حد طلبات QWeather. حاول لاحقًا.";
 "weather.unavailable" = "الطقس غير متاح حاليًا.";
 "weather.refresh" = "تحديث الطقس";
@@ -804,7 +805,7 @@
 "settings.weather.locationMode.manual" = "المدينة فقط";
 "settings.weather.locationMode.description" = "يستخدم الموقع التلقائي إذن الموقع الذي يملكه Status Trio مسبقًا ولا يطلبه بنفسه أبدًا؛ وبدونه تُستخدم المدينة أدناه.";
 "settings.weather.city" = "المدينة";
-"settings.weather.city.placeholder" = "اسم المدينة";
+"settings.weather.city.placeholder" = "مدينة أو خط العرض,خط الطول";
 "settings.weather.city.search" = "بحث";
 "settings.weather.city.none" = "غير محددة";
 "settings.weather.city.noResults" = "لم يتم العثور على مدينة";

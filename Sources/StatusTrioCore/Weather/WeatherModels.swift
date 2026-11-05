@@ -53,8 +53,12 @@ enum WeatherFailure: Error, Equatable, Sendable {
     case notConfigured
     /// Automatic location failed and no manual city is set.
     case noLocation
-    /// The key or host was rejected (HTTP 401/403 or QWeather 401/402/403).
+    /// The key or host was rejected (HTTP 401 or QWeather 401).
     case unauthorized
+    /// The key is valid but the project's security settings deny this API or
+    /// request (HTTP 403 "Security Restriction", QWeather 403), e.g. a key
+    /// that may call the forecast but not the city lookup.
+    case restricted
     /// Daily quota or rate limit (HTTP 429 or QWeather 402/429).
     case quotaExceeded
     /// Network, timeout, malformed response or any other server code.

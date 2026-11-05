@@ -124,6 +124,7 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case weatherNotConfigured = "weather.notConfigured"
     case weatherNoLocation = "weather.noLocation"
     case weatherUnauthorized = "weather.unauthorized"
+    case weatherRestricted = "weather.restricted"
     case weatherQuotaExceeded = "weather.quotaExceeded"
     case weatherUnavailable = "weather.unavailable"
     case weatherRefresh = "weather.refresh"

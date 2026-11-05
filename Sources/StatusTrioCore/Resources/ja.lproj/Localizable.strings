@@ -788,6 +788,7 @@
 "weather.notConfigured" = "「設定 › パネル › 天気」で QWeather の API Host と API Key を入力してください。";
 "weather.noLocation" = "位置情報を取得できません。位置情報へのアクセスを許可するか、設定で都市を選んでください。";
 "weather.unauthorized" = "QWeather が API Key または API Host を拒否しました。設定を確認してください。";
+"weather.restricted" = "QWeather のセキュリティ設定によりこのリクエストが拒否されました（例：このキーでは都市検索を使えない）。QWeather コンソールでキーの API 制限を確認するか、「緯度,経度」を入力してください。";
 "weather.quotaExceeded" = "QWeather のリクエスト上限に達しました。しばらくしてからお試しください。";
 "weather.unavailable" = "現在、天気を取得できません。";
 "weather.refresh" = "天気を更新";
@@ -804,7 +805,7 @@
 "settings.weather.locationMode.manual" = "都市のみ";
 "settings.weather.locationMode.description" = "自動の場所は Status Trio が既に持つ位置情報の権限を使い、独自に許可を求めることはありません。権限がない場合は下の都市を使います。";
 "settings.weather.city" = "都市";
-"settings.weather.city.placeholder" = "都市名";
+"settings.weather.city.placeholder" = "都市名または 緯度,経度";
 "settings.weather.city.search" = "検索";
 "settings.weather.city.none" = "未設定";
 "settings.weather.city.noResults" = "都市が見つかりません";

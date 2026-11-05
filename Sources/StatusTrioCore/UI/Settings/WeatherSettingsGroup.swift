@@ -74,7 +74,7 @@ struct WeatherSettingsGroup: View {
                 HStack(spacing: 6) {
                     TextField(localization.string(.settingsWeatherCityPlaceholder), text: $cityQuery)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 130)
+                        .frame(width: 150)
                         .labelsHidden()
                         .onSubmit { search() }
                     Button(localization.string(.settingsWeatherCitySearch)) { search() }
@@ -131,6 +131,14 @@ struct WeatherSettingsGroup: View {
     private func search() {
         let query = cityQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty, !isSearching else { return }
+        // Coordinates need no lookup at all.
+        if let location = WeatherLocation.coordinates(from: query) {
+            store.weatherManualLocation = location
+            results = []
+            cityQuery = ""
+            searchMessage = nil
+            return
+        }
         let credentials = QWeatherCredentials(host: store.weatherAPIHost, apiKey: keyStore.readKey())
         let language = QWeatherLanguage.code(for: localization.resolvedLanguage)
         isSearching = true

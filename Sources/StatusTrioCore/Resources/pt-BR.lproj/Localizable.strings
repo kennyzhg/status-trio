@@ -788,6 +788,7 @@
 "weather.notConfigured" = "Adicione o API Host e a chave de API do QWeather em Ajustes › Painel › Clima.";
 "weather.noLocation" = "Sem localização. Permita o acesso à localização ou escolha uma cidade nos ajustes.";
 "weather.unauthorized" = "O QWeather recusou a chave de API ou o API Host. Verifique os ajustes.";
+"weather.restricted" = "As configurações de segurança do QWeather recusaram esta solicitação (por exemplo, a chave não pode usar a busca de cidades). Verifique as restrições de API da chave no console do QWeather ou digite “latitude,longitude”.";
 "weather.quotaExceeded" = "Limite de solicitações do QWeather atingido. Tente mais tarde.";
 "weather.unavailable" = "O clima não está disponível agora.";
 "weather.refresh" = "Atualizar o clima";
@@ -804,7 +805,7 @@
 "settings.weather.locationMode.manual" = "Somente a cidade";
 "settings.weather.locationMode.description" = "A localização automática usa o acesso à localização que o Status Trio já tem e nunca pede por conta própria; sem ele, é usada a cidade abaixo.";
 "settings.weather.city" = "Cidade";
-"settings.weather.city.placeholder" = "Nome da cidade";
+"settings.weather.city.placeholder" = "Cidade ou lat,lon";
 "settings.weather.city.search" = "Buscar";
 "settings.weather.city.none" = "Não definida";
 "settings.weather.city.noResults" = "Nenhuma cidade encontrada";

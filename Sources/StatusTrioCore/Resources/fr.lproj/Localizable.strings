@@ -788,6 +788,7 @@
 "weather.notConfigured" = "Saisissez l’API Host et la clé d’API QWeather dans Réglages › Panneau › Météo.";
 "weather.noLocation" = "Aucune position. Autorisez l’accès à la position ou choisissez une ville dans les réglages.";
 "weather.unauthorized" = "QWeather a refusé la clé d’API ou l’API Host. Vérifiez les réglages.";
+"weather.restricted" = "Les réglages de sécurité de QWeather ont refusé cette requête (la clé ne peut peut-être pas utiliser la recherche de ville). Vérifiez les restrictions d’API de la clé dans la console QWeather, ou saisissez « latitude,longitude ».";
 "weather.quotaExceeded" = "Limite de requêtes QWeather atteinte. Réessayez plus tard.";
 "weather.unavailable" = "La météo est indisponible pour le moment.";
 "weather.refresh" = "Actualiser la météo";
@@ -804,7 +805,7 @@
 "settings.weather.locationMode.manual" = "Ville uniquement";
 "settings.weather.locationMode.description" = "La position automatique utilise l’accès à la position déjà accordé à Status Trio et ne le demande jamais d’elle-même ; sans cet accès, la ville ci-dessous est utilisée.";
 "settings.weather.city" = "Ville";
-"settings.weather.city.placeholder" = "Nom de la ville";
+"settings.weather.city.placeholder" = "Ville ou lat,lon";
 "settings.weather.city.search" = "Rechercher";
 "settings.weather.city.none" = "Non définie";
 "settings.weather.city.noResults" = "Aucune ville trouvée";

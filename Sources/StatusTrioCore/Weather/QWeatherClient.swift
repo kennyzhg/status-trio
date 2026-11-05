@@ -24,6 +24,26 @@ struct QWeatherCity: Equatable, Hashable, Sendable, Identifiable {
     }
 }
 
+extension WeatherLocation {
+    /// Reads `lat,lon` (comma, Chinese comma or whitespace separated), so a
+    /// city can be set without the GeoAPI, which some keys may not call.
+    static func coordinates(from text: String) -> WeatherLocation? {
+        let parts = text
+            .replacingOccurrences(of: "，", with: ",")
+            .split(whereSeparator: { $0 == "," || $0.isWhitespace })
+            .map(String.init)
+        guard parts.count == 2,
+              let latitude = Double(parts[0]),
+              let longitude = Double(parts[1]) else { return nil }
+        let location = WeatherLocation(
+            name: String(format: "%.2f, %.2f", latitude, longitude),
+            latitude: latitude,
+            longitude: longitude
+        )
+        return location.isValid ? location : nil
+    }
+}
+
 protocol WeatherForecastFetching: Sendable {
     func threeDayForecast(
         for location: WeatherLocation,
@@ -137,7 +157,8 @@ struct QWeatherClient: WeatherForecastFetching {
 
     static func failure(forHTTPStatus status: Int) -> WeatherFailure {
         switch status {
-        case 401, 403: .unauthorized
+        case 401: .unauthorized
+        case 403: .restricted
         case 429: .quotaExceeded
         default: .unavailable
         }
@@ -147,7 +168,8 @@ struct QWeatherClient: WeatherForecastFetching {
     static func failure(forCode code: String) -> WeatherFailure? {
         switch code {
         case "200": nil
-        case "401", "403": .unauthorized
+        case "401": .unauthorized
+        case "403": .restricted
         case "402", "429": .quotaExceeded
         default: .unavailable
         }

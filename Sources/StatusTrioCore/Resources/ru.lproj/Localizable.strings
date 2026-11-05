@@ -788,6 +788,7 @@
 "weather.notConfigured" = "Укажите API Host и API-ключ QWeather в разделе «Настройки › Панель › Погода».";
 "weather.noLocation" = "Нет местоположения. Разрешите доступ к геопозиции или выберите город в настройках.";
 "weather.unauthorized" = "QWeather отклонил API-ключ или API Host. Проверьте настройки.";
+"weather.restricted" = "Настройки безопасности QWeather отклонили этот запрос (например, ключу не разрешён поиск городов). Проверьте ограничения API ключа в консоли QWeather или введите «широта,долгота».";
 "weather.quotaExceeded" = "Достигнут лимит запросов QWeather. Повторите позже.";
 "weather.unavailable" = "Погода сейчас недоступна.";
 "weather.refresh" = "Обновить погоду";
@@ -804,7 +805,7 @@
 "settings.weather.locationMode.manual" = "Только город";
 "settings.weather.locationMode.description" = "Автоматическое местоположение использует уже выданный Status Trio доступ к геопозиции и никогда не запрашивает его само; без доступа используется город ниже.";
 "settings.weather.city" = "Город";
-"settings.weather.city.placeholder" = "Название города";
+"settings.weather.city.placeholder" = "Город или шир,долг";
 "settings.weather.city.search" = "Найти";
 "settings.weather.city.none" = "Не задан";
 "settings.weather.city.noResults" = "Город не найден";

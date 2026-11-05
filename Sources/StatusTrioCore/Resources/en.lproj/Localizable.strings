@@ -786,6 +786,7 @@
 "weather.notConfigured" = "Add your QWeather API Host and API Key in Settings › Panel › Weather.";
 "weather.noLocation" = "No location. Allow location access or choose a city in Settings.";
 "weather.unauthorized" = "QWeather rejected the API Key or API Host. Check Settings.";
+"weather.restricted" = "QWeather’s security settings denied this request (for example, the key may not use city search). Check the key’s API restrictions in the QWeather console, or enter “latitude,longitude” instead.";
 "weather.quotaExceeded" = "QWeather request limit reached. Try again later.";
 "weather.unavailable" = "Weather is unavailable right now.";
 "weather.refresh" = "Refresh Weather";
@@ -802,7 +803,7 @@
 "settings.weather.locationMode.manual" = "City only";
 "settings.weather.locationMode.description" = "Automatic location uses the location access Status Trio already has and never asks on its own; without it, the city below is used.";
 "settings.weather.city" = "City";
-"settings.weather.city.placeholder" = "City name";
+"settings.weather.city.placeholder" = "City or lat,lon";
 "settings.weather.city.search" = "Search";
 "settings.weather.city.none" = "Not set";
 "settings.weather.city.noResults" = "No city found";

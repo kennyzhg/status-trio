@@ -87,6 +87,7 @@ enum WeatherPanelMapper {
         case .notConfigured: .weatherNotConfigured
         case .noLocation: .weatherNoLocation
         case .unauthorized: .weatherUnauthorized
+        case .restricted: .weatherRestricted
         case .quotaExceeded: .weatherQuotaExceeded
         case .unavailable: .weatherUnavailable
         }
