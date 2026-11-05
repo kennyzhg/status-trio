@@ -18,16 +18,32 @@ enum BatteryTopSlotContent: String, CaseIterable, Identifiable, Sendable {
     case hidden
     /// Fresh whole-machine watts from the shared power sampler.
     case power
+    /// Watts while connected to power, the battery status while on battery.
+    /// A Mac with no battery is always on power, so it always shows watts.
+    case powerWhenPluggedIn
 
     var id: Self { self }
 
-    /// The concrete content once `.automatic` has been decided for this Mac.
-    func resolved(hasBattery: Bool) -> Self {
-        guard self == .automatic else { return self }
-        return hasBattery ? .battery : .hidden
+    /// The concrete content for the current battery reading: `.automatic` and
+    /// `.powerWhenPluggedIn` follow the hardware and the adapter at runtime.
+    func resolved(for battery: BatteryStatus) -> Self {
+        switch self {
+        case .automatic:
+            return battery.isPresent ? .battery : .hidden
+        case .powerWhenPluggedIn:
+            return Self.isOnPower(battery) ? .power : .battery
+        case .battery, .hidden, .power:
+            return self
+        }
     }
 
-    /// Only an explicit power choice asks for periodic power reads;
-    /// `.automatic` never resolves to `.power`.
-    var needsPowerSampling: Bool { self == .power }
+    /// Whether the current reading needs periodic power reads. The adaptive
+    /// choice releases the sampler while the Mac runs on battery.
+    func needsPowerSampling(for battery: BatteryStatus) -> Bool {
+        resolved(for: battery) == .power
+    }
+
+    static func isOnPower(_ battery: BatteryStatus) -> Bool {
+        !battery.isPresent || battery.isConnectedToPower
+    }
 }

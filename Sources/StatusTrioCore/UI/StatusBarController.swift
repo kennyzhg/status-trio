@@ -316,11 +316,16 @@ final class StatusBarController: NSObject {
         // panel and details page add their own faster demands.
         // The top slot (#274) can carry the same watts, so either choice keeps
         // the one shared icon demand alive.
-        powerDemandCancellable = Publishers.CombineLatest(
+        // The adaptive "watts on power" top slot only samples while the Mac is
+        // plugged in, so the battery reading is part of the decision.
+        powerDemandCancellable = Publishers.CombineLatest3(
             settings.$connectionCenterSource.removeDuplicates(),
-            settings.$batteryTopSlotContent.removeDuplicates()
+            settings.$batteryTopSlotContent.removeDuplicates(),
+            store.$snapshot.map(\.battery).removeDuplicates()
         )
-            .map { center, topSlot in center.needsPowerSampling || topSlot.needsPowerSampling }
+            .map { center, topSlot, battery in
+                center.needsPowerSampling || topSlot.needsPowerSampling(for: battery)
+            }
             .removeDuplicates()
             .sink { [weak self] needsPower in
                 guard let self else { return }

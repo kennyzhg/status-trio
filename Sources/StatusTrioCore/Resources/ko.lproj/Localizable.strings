@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "배터리";
 "settings.battery.topSlot.hidden" = "숨김";
 "settings.battery.topSlot.power" = "전력(와트)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "전원 연결 시 전력, 배터리 사용 시 잔량";
 "settings.battery.symbolScale" = "잔량/번개 크기";
 "settings.battery.symbolScaleAccessibility" = "배터리 잔량 및 번개 크기";
 "settings.battery.symbolScaleDescription" = "잔량과 번개는 같은 크기를 사용합니다.";

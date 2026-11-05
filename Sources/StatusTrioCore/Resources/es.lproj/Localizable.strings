@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "Batería";
 "settings.battery.topSlot.hidden" = "Oculto";
 "settings.battery.topSlot.power" = "Potencia (vatios)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "Corriente: vatios, batería: %";
 "settings.battery.symbolScale" = "Tamaño del porcentaje/rayo";
 "settings.battery.symbolScaleAccessibility" = "Tamaño del porcentaje y el rayo de la batería";
 "settings.battery.symbolScaleDescription" = "El porcentaje y el rayo comparten este tamaño.";

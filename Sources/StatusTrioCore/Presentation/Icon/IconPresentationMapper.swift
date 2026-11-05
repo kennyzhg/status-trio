@@ -50,8 +50,9 @@ enum IconPresentationMapper {
         now: Date
     ) -> TopSlotState {
         let battery = inputs.snapshot.battery
-        switch options.topSlotContent.resolved(hasBattery: battery.isPresent) {
-        case .automatic, .battery:
+        switch options.topSlotContent.resolved(for: battery) {
+        case .automatic, .powerWhenPluggedIn, .battery:
+            // `resolved(for:)` never returns the two adaptive cases.
             return .battery
         case .hidden:
             return .hidden

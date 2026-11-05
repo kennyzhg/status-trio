@@ -178,6 +178,7 @@
 "settings.battery.topSlot.battery" = "البطارية";
 "settings.battery.topSlot.hidden" = "مخفية";
 "settings.battery.topSlot.power" = "الطاقة (واط)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "الواط عند التوصيل، والنسبة عند البطارية";
 "settings.battery.symbolScale" = "حجم النسبة/البرق";
 "settings.battery.symbolScaleAccessibility" = "حجم نسبة البطارية ورمز البرق";
 "settings.battery.symbolScaleDescription" = "تستخدم النسبة ورمز البرق الحجم نفسه.";

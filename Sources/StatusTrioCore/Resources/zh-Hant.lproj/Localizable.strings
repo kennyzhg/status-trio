@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "電池";
 "settings.battery.topSlot.hidden" = "隱藏";
 "settings.battery.topSlot.power" = "功耗（瓦）";
+"settings.battery.topSlot.powerWhenPluggedIn" = "接電顯示功耗，電池顯示電量";
 "settings.battery.symbolScale" = "電量數字/閃電大小";
 "settings.battery.symbolScaleAccessibility" = "電量數字和閃電大小";
 "settings.battery.symbolScaleDescription" = "數字和閃電使用相同尺寸，調整這裡會同步改變兩者。";

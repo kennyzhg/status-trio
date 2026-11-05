@@ -391,6 +391,7 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case settingsBatteryTopSlotBattery = "settings.battery.topSlot.battery"
     case settingsBatteryTopSlotHidden = "settings.battery.topSlot.hidden"
     case settingsBatteryTopSlotPower = "settings.battery.topSlot.power"
+    case settingsBatteryTopSlotPowerWhenPluggedIn = "settings.battery.topSlot.powerWhenPluggedIn"
     case settingsBatterySymbolScale = "settings.battery.symbolScale"
     case settingsBatterySymbolScaleAccessibility = "settings.battery.symbolScaleAccessibility"
     case settingsBatterySymbolScaleDescription = "settings.battery.symbolScaleDescription"

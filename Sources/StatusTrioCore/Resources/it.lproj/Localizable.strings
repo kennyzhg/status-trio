@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "Batteria";
 "settings.battery.topSlot.hidden" = "Nascosto";
 "settings.battery.topSlot.power" = "Potenza (watt)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "Alimentatore: watt, batteria: %";
 "settings.battery.symbolScale" = "Dimensione percentuale/fulmine";
 "settings.battery.symbolScaleAccessibility" = "Dimensione percentuale batteria e fulmine";
 "settings.battery.symbolScaleDescription" = "Percentuale e fulmine usano la stessa dimensione.";

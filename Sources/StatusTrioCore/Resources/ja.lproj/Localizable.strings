@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "バッテリー";
 "settings.battery.topSlot.hidden" = "非表示";
 "settings.battery.topSlot.power" = "消費電力（W）";
+"settings.battery.topSlot.powerWhenPluggedIn" = "電源接続時は電力、バッテリー時は残量";
 "settings.battery.symbolScale" = "残量/稲妻のサイズ";
 "settings.battery.symbolScaleAccessibility" = "バッテリー残量と稲妻のサイズ";
 "settings.battery.symbolScaleDescription" = "残量と稲妻は同じサイズを使用します。";

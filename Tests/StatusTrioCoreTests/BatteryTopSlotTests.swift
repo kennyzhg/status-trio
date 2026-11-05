@@ -52,19 +52,45 @@ final class BatteryTopSlotTests: XCTestCase {
     // MARK: Resolution
 
     func testAutomaticFollowsRuntimeBatteryPresence() {
-        XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(hasBattery: true), .battery)
-        XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(hasBattery: false), .hidden)
+        XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(for: laptop), .battery)
+        XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(for: desktop), .hidden)
         for explicit in [BatteryTopSlotContent.battery, .hidden, .power] {
-            XCTAssertEqual(explicit.resolved(hasBattery: true), explicit)
-            XCTAssertEqual(explicit.resolved(hasBattery: false), explicit)
+            for battery in [laptop, chargingLaptop, desktop] {
+                XCTAssertEqual(explicit.resolved(for: battery), explicit)
+            }
         }
     }
 
-    func testOnlyPowerKeepsTheSamplerAlive() {
-        XCTAssertTrue(BatteryTopSlotContent.power.needsPowerSampling)
-        for content in BatteryTopSlotContent.allCases where content != .power {
-            XCTAssertFalse(content.needsPowerSampling, "\(content)")
+    func testPowerWhenPluggedInFollowsTheAdapter() {
+        XCTAssertEqual(BatteryTopSlotContent.powerWhenPluggedIn.resolved(for: laptop), .battery)
+        XCTAssertEqual(BatteryTopSlotContent.powerWhenPluggedIn.resolved(for: chargingLaptop), .power)
+        XCTAssertEqual(BatteryTopSlotContent.powerWhenPluggedIn.resolved(for: desktop), .power)
+    }
+
+    func testOnlyAResolvedPowerSlotKeepsTheSamplerAlive() {
+        for battery in [laptop, chargingLaptop, desktop] {
+            XCTAssertTrue(BatteryTopSlotContent.power.needsPowerSampling(for: battery))
+            for content in [BatteryTopSlotContent.automatic, .battery, .hidden] {
+                XCTAssertFalse(content.needsPowerSampling(for: battery), "\(content)")
+            }
         }
+        // The adaptive choice releases the sampler on battery.
+        XCTAssertFalse(BatteryTopSlotContent.powerWhenPluggedIn.needsPowerSampling(for: laptop))
+        XCTAssertTrue(BatteryTopSlotContent.powerWhenPluggedIn.needsPowerSampling(for: chargingLaptop))
+        XCTAssertTrue(BatteryTopSlotContent.powerWhenPluggedIn.needsPowerSampling(for: desktop))
+    }
+
+    func testPowerWhenPluggedInMapsWattsOnPowerAndPercentOnBattery() {
+        let sample = SystemPowerSample(watts: 31.2, readAt: now)
+        XCTAssertEqual(text(ring(chargingLaptop, topSlot: .powerWhenPluggedIn, power: sample)), "31")
+        XCTAssertEqual(text(ring(desktop, topSlot: .powerWhenPluggedIn, power: sample)), "31")
+        // On battery it is the battery gap, even with a sample lying around.
+        XCTAssertEqual(ring(laptop, topSlot: .powerWhenPluggedIn, power: sample),
+                       ring(laptop, topSlot: .battery))
+        XCTAssertEqual(text(ring(laptop, topSlot: .powerWhenPluggedIn, power: sample)), "68")
+        // Plugged in with no fresh reading: the battery status, never a fake 0.
+        XCTAssertEqual(ring(chargingLaptop, topSlot: .powerWhenPluggedIn, power: nil),
+                       ring(chargingLaptop, topSlot: .battery))
     }
 
     // MARK: Mapper

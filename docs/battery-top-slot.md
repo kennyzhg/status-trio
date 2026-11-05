@@ -12,6 +12,7 @@ gap shows. The ring itself always stays; only the gap content changes.
 | **Battery** | battery status | the historical `100` |
 | **Hidden** | closed gap; the arc still shows the level | closed full ring |
 | **Power (Watts)** | fresh integer watts; battery status while no fresh reading | fresh integer watts; `--` while no fresh reading |
+| **Watts on Power, % on Battery** | watts while connected to power, the battery status on battery | always watts (a desktop is always on power) |
 
 - Battery presence comes from the runtime IOKit snapshot
   (`BatteryStatus.isPresent`), never from a model list. Any explicit choice
@@ -19,8 +20,9 @@ gap shows. The ring itself always stays; only the gap content changes.
 - Power reuses the shared `PowerSamplingService` and the same rules as the
   centre power slot (`docs/power-center-slot.md`): integer watts, clamped to
   `0...999`, only while fresh, never a fake `0`, never an invented percentage.
-  `StatusBarController` registers the single `icon` demand while either the
-  centre slot or the top slot is set to Power; `.automatic` never samples.
+  `StatusBarController` registers the single `icon` demand while the centre
+  slot is Power or the top slot resolves to Power; `.automatic` never samples,
+  and the adaptive choice releases the sampler while the Mac runs on battery.
 - With the top slot replaced (Power), the **charging status inside the ring**
   centre mode (#253) no longer closes the gap, because the gap no longer shows
   the battery status that mode moved to the centre.

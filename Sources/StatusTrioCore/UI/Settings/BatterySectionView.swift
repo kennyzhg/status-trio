@@ -607,6 +607,8 @@ struct BatterySectionView: View {
             localization.string(.settingsBatteryTopSlotHidden)
         case .power:
             localization.string(.settingsBatteryTopSlotPower)
+        case .powerWhenPluggedIn:
+            localization.string(.settingsBatteryTopSlotPowerWhenPluggedIn)
         }
     }
 

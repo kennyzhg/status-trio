@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "Аккумулятор";
 "settings.battery.topSlot.hidden" = "Скрыт";
 "settings.battery.topSlot.power" = "Мощность (Вт)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "От сети — ватты, от батареи — %";
 "settings.battery.symbolScale" = "Размер процента и молнии";
 "settings.battery.symbolScaleAccessibility" = "Размер процента батареи и молнии";
 "settings.battery.symbolScaleDescription" = "Процент и молния используют один размер.";

@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "Battery";
 "settings.battery.topSlot.hidden" = "Hidden";
 "settings.battery.topSlot.power" = "Power (Watts)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "Watts on Power, % on Battery";
 "settings.battery.symbolScale" = "Percentage/bolt size";
 "settings.battery.symbolScaleAccessibility" = "Battery percentage and bolt size";
 "settings.battery.symbolScaleDescription" = "The percentage and bolt share this size.";

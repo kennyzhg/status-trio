@@ -195,6 +195,7 @@
 "settings.battery.topSlot.battery" = "Batterie";
 "settings.battery.topSlot.hidden" = "Ausgeblendet";
 "settings.battery.topSlot.power" = "Leistung (Watt)";
+"settings.battery.topSlot.powerWhenPluggedIn" = "Netz: Watt, Akku: Prozent";
 "settings.battery.symbolScale" = "Größe von Prozentsatz/Blitz";
 "settings.battery.symbolScaleAccessibility" = "Größe von Batterieprozentsatz und Blitz";
 "settings.battery.symbolScaleDescription" = "Prozentsatz und Blitz verwenden dieselbe Größe.";
