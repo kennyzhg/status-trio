@@ -31,12 +31,15 @@ struct GeneralSectionView: View {
         statusStore?.snapshot.battery.isPresent ?? true
     }
 
-    /// One 5–60 s slider. Each row carries its own accessibility label so the
-    /// two sliders never read out as the same control.
+    /// One interval slider with its own range and step. Each row carries its
+    /// own accessibility label so the two sliders never read out as the same
+    /// control.
     private func refreshIntervalRow(
         title: String,
         subtitle: String?,
-        value: Binding<Double>
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        snap: @escaping (Double) -> Double
     ) -> some View {
         let valueText = localization.format(.settingsRefreshIntervalValue, Int(value.wrappedValue))
         return SettingsRow(
@@ -49,9 +52,9 @@ struct GeneralSectionView: View {
                 Slider(
                     value: Binding(
                         get: { value.wrappedValue },
-                        set: { value.wrappedValue = ($0 / 5).rounded() * 5 }
+                        set: { value.wrappedValue = snap($0) }
                     ),
-                    in: SettingsStore.refreshIntervalRange
+                    in: range
                 )
                 .frame(width: 130)
                 .controlSize(.small)
@@ -158,7 +161,9 @@ struct GeneralSectionView: View {
                 refreshIntervalRow(
                     title: localization.string(.settingsRefreshIntervalOnBattery),
                     subtitle: localization.string(.settingsRefreshIntervalDescription),
-                    value: $store.refreshIntervalOnBatterySeconds
+                    value: $store.refreshIntervalOnBatterySeconds,
+                    range: SettingsStore.refreshIntervalOnBatteryRange,
+                    snap: { SettingsStore.clampedRefreshIntervalOnBattery($0) }
                 )
 
                 SettingsDivider()
@@ -166,13 +171,17 @@ struct GeneralSectionView: View {
                 refreshIntervalRow(
                     title: localization.string(.settingsRefreshIntervalOnPower),
                     subtitle: nil,
-                    value: $store.refreshIntervalOnPowerSeconds
+                    value: $store.refreshIntervalOnPowerSeconds,
+                    range: SettingsStore.refreshIntervalOnPowerRange,
+                    snap: { SettingsStore.clampedRefreshIntervalOnPower($0) }
                 )
             } else {
                 refreshIntervalRow(
                     title: localization.string(.settingsRefreshInterval),
                     subtitle: localization.string(.settingsRefreshIntervalDescriptionNoBattery),
-                    value: $store.refreshIntervalOnPowerSeconds
+                    value: $store.refreshIntervalOnPowerSeconds,
+                    range: SettingsStore.refreshIntervalOnPowerRange,
+                    snap: { SettingsStore.clampedRefreshIntervalOnPower($0) }
                 )
             }
         }

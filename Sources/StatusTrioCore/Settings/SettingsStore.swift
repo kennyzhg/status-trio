@@ -127,12 +127,17 @@ final class SettingsStore: ObservableObject {
     static let defaultRingStrokeStyle: RingStrokeStyle = .regular
     static let ringStrokeStyleDefaultsKey = "ringStrokeStyle"
 
-    static let refreshIntervalRange: ClosedRange<Double> = 5...60
-    /// The fallback poll sits behind push channels, so its steady-state cadence
-    /// is a watchdog rather than the primary update path. 15 seconds keeps the
-    /// icon honest without waking the CPU every 5; 5 stays available in
-    /// `refreshIntervalRange` for anyone who wants the old cadence.
-    static let defaultRefreshIntervalSeconds: Double = 15
+    /// The fallback poll sits behind push channels, so on battery it stays a
+    /// watchdog rather than the primary update path: 5–60 s in 2 s steps from 5
+    /// (5, 7, … 59, plus the 60 s end), default 15 (#255).
+    static let refreshIntervalOnBatteryRange: ClosedRange<Double> = 5...60
+    static let refreshIntervalOnBatteryStep: Double = 2
+    static let defaultRefreshIntervalOnBatterySeconds: Double = 15
+    /// On power the cadence can be much tighter: 1–60 s in 1 s steps,
+    /// default 5 (#255).
+    static let refreshIntervalOnPowerRange: ClosedRange<Double> = 1...60
+    static let refreshIntervalOnPowerStep: Double = 1
+    static let defaultRefreshIntervalOnPowerSeconds: Double = 5
     /// The pre-#255 single interval. Read once as the migration source for both
     /// split intervals; afterwards it mirrors the on-power interval so a build
     /// that only knows this key still finds a sensible value.
@@ -891,7 +896,7 @@ final class SettingsStore: ObservableObject {
     /// Fallback-poll interval while the Mac runs on battery (#255).
     @Published var refreshIntervalOnBatterySeconds: Double {
         didSet {
-            let clamped = Self.clampedRefreshInterval(refreshIntervalOnBatterySeconds)
+            let clamped = Self.clampedRefreshIntervalOnBattery(refreshIntervalOnBatterySeconds)
             guard clamped == refreshIntervalOnBatterySeconds else {
                 refreshIntervalOnBatterySeconds = clamped
                 return
@@ -904,7 +909,7 @@ final class SettingsStore: ObservableObject {
     /// with no battery (#255).
     @Published var refreshIntervalOnPowerSeconds: Double {
         didSet {
-            let clamped = Self.clampedRefreshInterval(refreshIntervalOnPowerSeconds)
+            let clamped = Self.clampedRefreshIntervalOnPower(refreshIntervalOnPowerSeconds)
             guard clamped == refreshIntervalOnPowerSeconds else {
                 refreshIntervalOnPowerSeconds = clamped
                 return
@@ -2070,16 +2075,16 @@ final class SettingsStore: ObservableObject {
             .flatMap(RingStrokeStyle.init(rawValue:))
             ?? Self.defaultRingStrokeStyle
         // #255: a missing split key inherits the old single interval, so an
-        // upgrading user keeps the cadence they chose for both power sources.
-        let migratedRefreshInterval = Self.clampedRefreshInterval(
-            storedRefreshInterval ?? Self.defaultRefreshIntervalSeconds
-        )
+        // upgrading user keeps the cadence they chose; a fresh install starts
+        // at 15 s on battery and 5 s on power.
         let storedOnBattery = (defaults.object(forKey: Self.refreshIntervalOnBatteryDefaultsKey) as? NSNumber)?.doubleValue
         let storedOnPower = (defaults.object(forKey: Self.refreshIntervalOnPowerDefaultsKey) as? NSNumber)?.doubleValue
-        self.refreshIntervalOnBatterySeconds = storedOnBattery.map { Self.clampedRefreshInterval($0) }
-            ?? migratedRefreshInterval
-        self.refreshIntervalOnPowerSeconds = storedOnPower.map { Self.clampedRefreshInterval($0) }
-            ?? migratedRefreshInterval
+        self.refreshIntervalOnBatterySeconds = Self.clampedRefreshIntervalOnBattery(
+            storedOnBattery ?? storedRefreshInterval ?? Self.defaultRefreshIntervalOnBatterySeconds
+        )
+        self.refreshIntervalOnPowerSeconds = Self.clampedRefreshIntervalOnPower(
+            storedOnPower ?? storedRefreshInterval ?? Self.defaultRefreshIntervalOnPowerSeconds
+        )
         self.maxVisibleOutputDevices = Self.clampedOutputDeviceLimit(
             storedOutputDeviceLimit ?? Self.defaultMaxVisibleOutputDevices
         )
@@ -2329,10 +2334,36 @@ final class SettingsStore: ObservableObject {
         return Double(limit)
     }
 
-    static func clampedRefreshInterval(_ value: Double) -> Double {
-        guard value.isFinite else { return defaultRefreshIntervalSeconds }
-        let clamped = min(refreshIntervalRange.upperBound, max(refreshIntervalRange.lowerBound, value))
-        return (clamped / 5).rounded() * 5
+    static func clampedRefreshIntervalOnBattery(_ value: Double) -> Double {
+        steppedRefreshInterval(
+            value,
+            range: refreshIntervalOnBatteryRange,
+            step: refreshIntervalOnBatteryStep,
+            fallback: defaultRefreshIntervalOnBatterySeconds
+        )
+    }
+
+    static func clampedRefreshIntervalOnPower(_ value: Double) -> Double {
+        steppedRefreshInterval(
+            value,
+            range: refreshIntervalOnPowerRange,
+            step: refreshIntervalOnPowerStep,
+            fallback: defaultRefreshIntervalOnPowerSeconds
+        )
+    }
+
+    /// Snaps to `lower + n * step`, always allowing the range's upper end so a
+    /// step that does not divide the range can still reach it.
+    static func steppedRefreshInterval(
+        _ value: Double,
+        range: ClosedRange<Double>,
+        step: Double,
+        fallback: Double
+    ) -> Double {
+        guard value.isFinite else { return fallback }
+        let clamped = min(range.upperBound, max(range.lowerBound, value))
+        let snapped = range.lowerBound + ((clamped - range.lowerBound) / step).rounded() * step
+        return min(range.upperBound, snapped)
     }
 
     static func clampedHighEnergyAppsRefreshInterval(_ value: Double) -> Double {
