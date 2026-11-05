@@ -288,6 +288,7 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case settingsBluetoothListeningModeDescription = "settings.bluetooth.listeningModeDescription"
     case settingsBluetoothListeningModePreview = "settings.bluetooth.listeningModePreview"
     case settingsBluetoothListeningModePreviewDescription = "settings.bluetooth.listeningModePreviewDescription"
+    case settingsBluetoothListeningModePreviewOptions = "settings.bluetooth.listeningModePreviewOptions"
     case settingsBluetoothListeningModePreviewDeviceName = "settings.bluetooth.listeningModePreviewDeviceName"
     case settingsBluetoothListeningModePreviewDeviceNameDescription = "settings.bluetooth.listeningModePreviewDeviceNameDescription"
     case settingsBluetoothListeningModePreviewDeviceCount = "settings.bluetooth.listeningModePreviewDeviceCount"
@@ -296,6 +297,13 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case settingsBluetoothListeningModePreviewLanguageDescription = "settings.bluetooth.listeningModePreviewLanguageDescription"
     case settingsBluetoothShowInStatusPanel = "settings.bluetooth.showInStatusPanel"
     case settingsBluetoothShowInStatusPanelDescription = "settings.bluetooth.showInStatusPanelDescription"
+
+    // Quick "show this module in the status panel" toggles on each pane.
+    case settingsPanelShowBattery = "settings.panel.showBattery"
+    case settingsPanelShowNetwork = "settings.panel.showNetwork"
+    case settingsPanelShowAudio = "settings.panel.showAudio"
+    case settingsPanelShowBrightness = "settings.panel.showBrightness"
+    case settingsPanelShowItemDescription = "settings.panel.showItemDescription"
     case settingsBluetoothPowerControl = "settings.bluetooth.powerControl"
     case settingsBluetoothPowerControlDescription = "settings.bluetooth.powerControlDescription"
     case settingsBluetoothSymbolScale = "settings.bluetooth.symbolScale"
@@ -314,6 +322,7 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case settingsBluetoothShowDeviceList = "settings.bluetooth.showDeviceList"
     case settingsBluetoothShowDeviceListDescription = "settings.bluetooth.showDeviceListDescription"
     case settingsBluetoothDeviceListGroup = "settings.bluetooth.deviceListGroup"
+    case settingsBluetoothMoreSettings = "settings.bluetooth.moreSettings"
     case settingsBluetoothMaximumVisible = "settings.bluetooth.maximumVisible"
     case settingsBluetoothMaximumVisibleDescription = "settings.bluetooth.maximumVisibleDescription"
     case settingsBluetoothOrderTitle = "settings.bluetooth.orderTitle"
@@ -393,6 +402,8 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case settingsBatteryGroupCharging = "settings.battery.group.charging"
     case settingsBatteryGroupPowerModes = "settings.battery.group.powerModes"
     case settingsBatteryGroupPower = "settings.battery.group.power"
+    case settingsBatteryGroupTopMarkers = "settings.battery.group.topMarkers"
+    case settingsBatteryGroupProgress = "settings.battery.group.progress"
     case settingsBatteryNoBatteryNotice = "settings.battery.noBatteryNotice"
     case settingsBatteryShowPercentage = "settings.battery.showPercentage"
     case settingsBatteryShowChargingIndicator = "settings.battery.showChargingIndicator"
@@ -817,4 +828,22 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case powerModeLow = "battery.powerMode.low"
     case powerModeHigh = "battery.powerMode.high"
     case powerModeHighRequiresPower = "battery.powerMode.highRequiresPower"
+
+    // Settings subpage labels
+    case settingsSubtopicAppIconAppearance = "settings.subtopic.appIcon.appearance"
+    case settingsSubtopicAppIconRing = "settings.subtopic.appIcon.ring"
+    case settingsSubtopicAppIconMiddleIcon = "settings.subtopic.appIcon.middleIcon"
+    case settingsSubtopicAppIconBottomIndicator = "settings.subtopic.appIcon.bottomIndicator"
+
+    case settingsSubtopicBatteryCharging = "settings.subtopic.battery.charging"
+    case settingsSubtopicBatteryPowerMode = "settings.subtopic.battery.powerMode"
+    case settingsSubtopicBatteryEnergy = "settings.subtopic.battery.energy"
+
+    case settingsSubtopicAudioVolumeControl = "settings.subtopic.audio.volumeControl"
+    case settingsSubtopicAudioAudioDevices = "settings.subtopic.audio.audioDevices"
+    case settingsSubtopicAudioDisplayVolume = "settings.subtopic.audio.displayVolume"
+
+    case settingsSubtopicBluetoothListeningMode = "settings.subtopic.bluetooth.listeningMode"
+    case settingsSubtopicBluetoothDeviceBattery = "settings.subtopic.bluetooth.deviceBattery"
+    case settingsSubtopicBluetoothDeviceManagement = "settings.subtopic.bluetooth.deviceManagement"
 }

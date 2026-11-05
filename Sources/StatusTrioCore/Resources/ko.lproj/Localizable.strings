@@ -65,7 +65,7 @@
 "settings.appIcon.middleIcon.batteryPercentage" = "배터리 잔량";
 "settings.appIcon.middleIcon.power" = "전력(와트)";
 "settings.appIcon.middleIcon.chargingStatus" = "충전 상태";
-"settings.appIcon.middleIcon.chargingStatus.description" = "배터리 사용 시 잔량, 충전 중에는 번개, 전원 연결 시 플러그를 표시하며 링은 닫힌 상태로 유지됩니다.";
+"settings.appIcon.middleIcon.chargingStatus.description" = "이 모드에서는 상단 아크의 '충전 또는 전원 연결 시 아이콘 표시'가 비활성화되어 아이콘이 중복되지 않습니다.";
 "settings.appIcon.middleIcon.size" = "중앙 아이콘 크기";
 "settings.appIcon.middleIcon.size.description" = "중앙에 표시되는 모든 내용(Wi-Fi, Bluetooth, 입력 소스, 숫자)에 공통으로 적용되는 크기입니다.";
 "settings.appIcon.middleIcon.networkWarnings" = "네트워크 문제 우선 표시";
@@ -103,6 +103,7 @@
 "settings.bluetooth.listeningModeDescription" = "AirPods와 일부 HUAWEI 헤드폰을 지원합니다: 연결된 기기에 노이즈 캔슬링/투명/꺼짐 단추를 표시합니다. HUAWEI는 일부 모델만 지원하며 전환에 실패하면 원래 모드로 복원됩니다.";
 "settings.bluetooth.listeningModePreview" = "리스닝 모드 미리보기(테스트 전용)";
 "settings.bluetooth.listeningModePreviewDescription" = "미리보기는 인터페이스 테스트용 합성 행만 추가하며, 미리보기 행을 전환해도 헤드폰은 변경되지 않습니다. 실제 기기 행(HUAWEI 포함)은 각 기기의 지원에 따라 계속 동작합니다. HUAWEI는 일부 모델만 지원하며, 전환에 실패하면 원래 모드로 복원됩니다.";
+"settings.bluetooth.listeningModePreviewOptions" = "미리보기 옵션";
 "settings.bluetooth.listeningModePreviewDeviceName" = "미리보기 기기 이름";
 "settings.bluetooth.listeningModePreviewDeviceNameDescription" = "미리보기 행에 표시할 이름입니다. 비워 두면 기본값을 사용하고, 긴 이름을 넣으면 잘림을 확인할 수 있습니다.";
 "settings.bluetooth.listeningModePreviewDeviceCount" = "미리보기 행 수";
@@ -111,6 +112,11 @@
 "settings.bluetooth.listeningModePreviewLanguageDescription" = "미리보기 행의 모드 이름만 선택한 언어로 렌더링하고, 나머지 패널은 시스템 언어를 유지합니다. 독일어의 긴 단어 또는 아라비아어의 RTL 배치에서 캡슐이 어떻게 줄바꿈되는지 비교하기에 좋습니다.";
 "settings.bluetooth.showInStatusPanel" = "상태 패널에 Bluetooth 표시";
 "settings.bluetooth.showInStatusPanelDescription" = "상태 패널의 Bluetooth 항목을 전환하며 상태 패널 설정과 동기화됩니다.";
+"settings.panel.showBattery" = "상태 패널에 배터리 표시";
+"settings.panel.showNetwork" = "상태 패널에 네트워크 표시";
+"settings.panel.showAudio" = "상태 패널에 오디오 표시";
+"settings.panel.showBrightness" = "상태 패널에 밝기 표시";
+"settings.panel.showItemDescription" = "이 모듈을 상태 패널에 표시할지 제어합니다.";
 "settings.bluetooth.powerControl" = "Bluetooth 전원 버튼 표시";
 "settings.bluetooth.powerControlDescription" = "상태 패널에 Bluetooth 전원 버튼을 표시합니다. 추가 권한이 필요하지 않습니다.";
 "settings.bluetooth.symbolScale" = "Bluetooth 아이콘 크기";
@@ -128,7 +134,8 @@
 "settings.bluetooth.iconChoice.stereoPair" = "스테레오 페어";
 "settings.bluetooth.showDeviceList" = "Bluetooth 기기 목록 표시";
 "settings.bluetooth.showDeviceListDescription" = "상태 패널의 Bluetooth 항목 아래에 페어링된 기기를 표시합니다. 연결된 기기가 먼저 표시됩니다.";
-"settings.bluetooth.deviceListGroup" = "상태 패널 목록";
+"settings.bluetooth.deviceListGroup" = "Bluetooth 기기 목록";
+"settings.bluetooth.moreSettings" = "추가 설정";
 "settings.bluetooth.maximumVisible" = "표시할 최대 Bluetooth 기기 수";
 "settings.bluetooth.maximumVisibleDescription" = "‘펼치기’ 컨트롤 전에 표시할 기기 수입니다.";
 "settings.bluetooth.orderTitle" = "Bluetooth 기기 순서";
@@ -168,7 +175,9 @@
 "settings.battery.group.charging" = "충전";
 "settings.battery.group.powerModes" = "전원 모드";
 "settings.battery.group.power" = "전력";
-"settings.battery.noBatteryNotice" = "이 Mac에는 배터리가 없어 상단 슬롯이 기본적으로 숨겨집니다. 아래 '상단 슬롯'에서 전력 또는 자리 표시용 100을 표시하도록 바꿀 수 있습니다.";
+"settings.battery.group.topMarkers" = "상단 마커";
+"settings.battery.group.progress" = "진행 상황";
+"settings.battery.noBatteryNotice" = "이 Mac에는 배터리가 없어 상단 슬롯이 기본적으로 숨겨집니다. '앱 아이콘 › 상단 아크'의 '상단 슬롯'에서 전력 또는 자리 표시용 100을 표시하도록 바꿀 수 있습니다.";
 "settings.battery.showPercentage" = "배터리 잔량 표시";
 "settings.battery.showChargingIndicator" = "충전 또는 전원 연결 시 아이콘 표시";
 "settings.battery.chargingDescription" = "활성화하면 충전 중이거나 전원에 연결되었을 때 잔량이 번개 또는 플러그로 바뀝니다. 비활성화하면 잔량을 계속 표시합니다.";
@@ -809,3 +818,18 @@
 "settings.weather.city.search" = "검색";
 "settings.weather.city.none" = "설정 안 됨";
 "settings.weather.city.noResults" = "도시를 찾을 수 없음";
+
+// Settings subpage labels
+"settings.subtopic.appIcon.appearance" = "전체 모양";
+"settings.subtopic.appIcon.ring" = "상단 아크";
+"settings.subtopic.appIcon.bottomIndicator" = "하단 표시기";
+"settings.subtopic.appIcon.middleIcon" = "중앙 아이콘";
+"settings.subtopic.battery.charging" = "충전";
+"settings.subtopic.battery.powerMode" = "전원 모드";
+"settings.subtopic.battery.energy" = "에너지 정보";
+"settings.subtopic.audio.volumeControl" = "볼륨 제어";
+"settings.subtopic.audio.audioDevices" = "오디오 기기";
+"settings.subtopic.audio.displayVolume" = "디스플레이 볼륨";
+"settings.subtopic.bluetooth.listeningMode" = "청취 모드";
+"settings.subtopic.bluetooth.deviceBattery" = "기기 배터리";
+"settings.subtopic.bluetooth.deviceManagement" = "기기 관리";

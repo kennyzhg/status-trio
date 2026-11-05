@@ -65,7 +65,7 @@
 "settings.appIcon.middleIcon.batteryPercentage" = "バッテリー残量";
 "settings.appIcon.middleIcon.power" = "消費電力（W）";
 "settings.appIcon.middleIcon.chargingStatus" = "充電状態";
-"settings.appIcon.middleIcon.chargingStatus.description" = "バッテリー駆動時は残量、充電中は稲妻、電源接続時はプラグを表示し、リングは閉じたままです。";
+"settings.appIcon.middleIcon.chargingStatus.description" = "このモードでは、上部アークの「充電中または電源接続時にアイコンを表示」は無効になり、アイコンの重複を防ぎます。";
 "settings.appIcon.middleIcon.size" = "中央アイコンのサイズ";
 "settings.appIcon.middleIcon.size.description" = "中央に表示するすべての内容（Wi-Fi、Bluetooth、入力ソース、数字）で共通のサイズです。";
 "settings.appIcon.middleIcon.networkWarnings" = "ネットワークの問題を優先";
@@ -103,6 +103,7 @@
 "settings.bluetooth.listeningModeDescription" = "AirPods と一部の HUAWEI ヘッドホンをサポート：接続中のデバイスにノイズキャンセリング/外音取り込み/オフのボタンを表示します。HUAWEI は一部のモデルのみ対応しており、切り替えに失敗した場合は元のモードに戻ります。";
 "settings.bluetooth.listeningModePreview" = "リスニングモードのプレビュー（テスト専用）";
 "settings.bluetooth.listeningModePreviewDescription" = "プレビューは UI 確認用の合成行を追加するだけで、プレビュー行を切り替えてもヘッドホンは変更されません。実際のデバイス行（HUAWEI を含む）は各デバイスの対応に従って動作します。HUAWEI は一部のモデルのみ対応しており、切り替えに失敗した場合は元のモードに戻ります。";
+"settings.bluetooth.listeningModePreviewOptions" = "プレビューのオプション";
 "settings.bluetooth.listeningModePreviewDeviceName" = "プレビュー表示名";
 "settings.bluetooth.listeningModePreviewDeviceNameDescription" = "プレビュー行に表示するデバイス名です。空欄は既定値。長い名前を入力すれば省略表示を確認できます。";
 "settings.bluetooth.listeningModePreviewDeviceCount" = "プレビュー行数";
@@ -111,6 +112,11 @@
 "settings.bluetooth.listeningModePreviewLanguageDescription" = "プレビュー行のモード名だけを選択言語で表示します。パネルの他部分はシステム言語のまま。ドイツ語の長い単語やアラビア語の RTL 表示でカプセルがどう折り返されるかの比較に便利です。";
 "settings.bluetooth.showInStatusPanel" = "ステータスパネルに Bluetooth を表示";
 "settings.bluetooth.showInStatusPanelDescription" = "ステータスパネルの Bluetooth 項目を切り替え、ステータスパネル設定と同期します。";
+"settings.panel.showBattery" = "ステータスパネルにバッテリーを表示";
+"settings.panel.showNetwork" = "ステータスパネルにネットワークを表示";
+"settings.panel.showAudio" = "ステータスパネルにオーディオを表示";
+"settings.panel.showBrightness" = "ステータスパネルに明るさを表示";
+"settings.panel.showItemDescription" = "このモジュールをステータスパネルに表示するかを制御します。";
 "settings.bluetooth.powerControl" = "Bluetooth 電源ボタンを表示";
 "settings.bluetooth.powerControlDescription" = "ステータスパネルに Bluetooth の電源ボタンを表示します。追加の権限は必要ありません。";
 "settings.bluetooth.symbolScale" = "Bluetooth アイコンサイズ";
@@ -128,7 +134,8 @@
 "settings.bluetooth.iconChoice.stereoPair" = "ステレオペア";
 "settings.bluetooth.showDeviceList" = "Bluetooth デバイス一覧を表示";
 "settings.bluetooth.showDeviceListDescription" = "ステータスパネルの Bluetooth 項目の下にペアリング済みのデバイスを一覧表示します。接続中のデバイスが先頭に表示されます。";
-"settings.bluetooth.deviceListGroup" = "ステータスパネルの一覧";
+"settings.bluetooth.deviceListGroup" = "Bluetooth デバイスリスト";
+"settings.bluetooth.moreSettings" = "その他の設定";
 "settings.bluetooth.maximumVisible" = "表示する Bluetooth デバイスの最大数";
 "settings.bluetooth.maximumVisibleDescription" = "「展開」を表示する前に表示するデバイス数です。";
 "settings.bluetooth.orderTitle" = "Bluetooth デバイスの順序";
@@ -168,7 +175,9 @@
 "settings.battery.group.charging" = "充電";
 "settings.battery.group.powerModes" = "電力モード";
 "settings.battery.group.power" = "電力";
-"settings.battery.noBatteryNotice" = "この Mac にはバッテリーがないため、上部スロットは既定で非表示です。下の「上部スロット」で消費電力やプレースホルダの 100 を表示できます。";
+"settings.battery.group.topMarkers" = "上部マーカー";
+"settings.battery.group.progress" = "進行状況";
+"settings.battery.noBatteryNotice" = "この Mac にはバッテリーがないため、上部スロットは既定で非表示です。「アプリアイコン › 上部アーク」の「上部スロット」で消費電力やプレースホルダの 100 を表示できます。";
 "settings.battery.showPercentage" = "バッテリー残量を表示";
 "settings.battery.showChargingIndicator" = "充電中または電源接続時にアイコンを表示";
 "settings.battery.chargingDescription" = "有効にすると、充電中または電源接続時に残量が稲妻またはプラグに変わります。無効の場合は残量を表示します。";
@@ -809,3 +818,18 @@
 "settings.weather.city.search" = "検索";
 "settings.weather.city.none" = "未設定";
 "settings.weather.city.noResults" = "都市が見つかりません";
+
+// Settings subpage labels
+"settings.subtopic.appIcon.appearance" = "全体の外観";
+"settings.subtopic.appIcon.ring" = "上部アーク";
+"settings.subtopic.appIcon.bottomIndicator" = "下部インジケーター";
+"settings.subtopic.appIcon.middleIcon" = "中央アイコン";
+"settings.subtopic.battery.charging" = "充電";
+"settings.subtopic.battery.powerMode" = "電源モード";
+"settings.subtopic.battery.energy" = "エネルギー情報";
+"settings.subtopic.audio.volumeControl" = "音量コントロール";
+"settings.subtopic.audio.audioDevices" = "オーディオデバイス";
+"settings.subtopic.audio.displayVolume" = "ディスプレイ音量";
+"settings.subtopic.bluetooth.listeningMode" = "リスニングモード";
+"settings.subtopic.bluetooth.deviceBattery" = "デバイスのバッテリー";
+"settings.subtopic.bluetooth.deviceManagement" = "デバイス管理";

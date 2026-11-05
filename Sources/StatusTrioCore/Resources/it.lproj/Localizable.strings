@@ -65,7 +65,7 @@
 "settings.appIcon.middleIcon.batteryPercentage" = "Percentuale batteria";
 "settings.appIcon.middleIcon.power" = "Potenza (watt)";
 "settings.appIcon.middleIcon.chargingStatus" = "Stato di carica";
-"settings.appIcon.middleIcon.chargingStatus.description" = "Mostra la percentuale a batteria, un fulmine durante la carica e una spina quando collegato; l'anello resta chiuso.";
+"settings.appIcon.middleIcon.chargingStatus.description" = "In questa modalità «Mostra un indicatore durante la carica o con alimentazione collegata» dell'arco superiore è disattivato per evitare un'icona duplicata.";
 "settings.appIcon.middleIcon.size" = "Dimensione dell’icona centrale";
 "settings.appIcon.middleIcon.size.description" = "Una sola dimensione per tutti i contenuti centrali: Wi-Fi, Bluetooth, sorgente di input e numeri.";
 "settings.appIcon.middleIcon.networkWarnings" = "Dai priorità ai problemi di rete";
@@ -103,6 +103,7 @@
 "settings.bluetooth.listeningModeDescription" = "Supporta AirPods e alcune cuffie HUAWEI: mostra le capsule di cancellazione del rumore/trasparenza/spento sui dispositivi collegati. Solo alcuni modelli HUAWEI sono supportati; se un cambio non riesce, viene ripristinata la modalità precedente.";
 "settings.bluetooth.listeningModePreview" = "Anteprima della modalità di ascolto (solo test)";
 "settings.bluetooth.listeningModePreviewDescription" = "L'anteprima aggiunge solo righe sintetiche per testare l'interfaccia; cambiare una riga di anteprima non modifica mai le cuffie. Le righe dei dispositivi reali, inclusi HUAWEI, continuano a funzionare in base al supporto di ciascun dispositivo: solo alcuni modelli HUAWEI sono supportati e, se un cambio fallisce, viene ripristinata la modalità precedente.";
+"settings.bluetooth.listeningModePreviewOptions" = "Opzioni anteprima";
 "settings.bluetooth.listeningModePreviewDeviceName" = "Nome dispositivo anteprima";
 "settings.bluetooth.listeningModePreviewDeviceNameDescription" = "Nome mostrato nelle righe di anteprima. Lascia vuoto per il default, oppure inserisci un nome molto lungo per verificare la troncatura.";
 "settings.bluetooth.listeningModePreviewDeviceCount" = "Numero di righe anteprima";
@@ -111,6 +112,11 @@
 "settings.bluetooth.listeningModePreviewLanguageDescription" = "Mostra i nomi delle capsule nelle righe di anteprima in una lingua scelta, lasciando il resto del pannello nella lingua di sistema. Utile per confrontare il capo di una parola lunga in tedesco o una scrittura da destra a sinistra in arabo.";
 "settings.bluetooth.showInStatusPanel" = "Mostra Bluetooth nel pannello di stato";
 "settings.bluetooth.showInStatusPanelDescription" = "Controlla l’elemento Bluetooth nel pannello di stato e resta sincronizzato con le impostazioni del pannello di stato.";
+"settings.panel.showBattery" = "Mostra batteria nel pannello di stato";
+"settings.panel.showNetwork" = "Mostra rete nel pannello di stato";
+"settings.panel.showAudio" = "Mostra audio nel pannello di stato";
+"settings.panel.showBrightness" = "Mostra luminosità nel pannello di stato";
+"settings.panel.showItemDescription" = "Controlla se questo modulo appare nel pannello di stato.";
 "settings.bluetooth.powerControl" = "Mostra il controllo di accensione Bluetooth";
 "settings.bluetooth.powerControlDescription" = "Aggiunge un pulsante di accensione Bluetooth al pannello di stato. Non richiede autorizzazioni aggiuntive.";
 "settings.bluetooth.symbolScale" = "Dimensione icona Bluetooth";
@@ -128,7 +134,8 @@
 "settings.bluetooth.iconChoice.stereoPair" = "Coppia stereo";
 "settings.bluetooth.showDeviceList" = "Mostra l’elenco dei dispositivi Bluetooth";
 "settings.bluetooth.showDeviceListDescription" = "Elenca i dispositivi abbinati sotto la voce Bluetooth nel pannello di stato. I dispositivi connessi vengono mostrati per primi.";
-"settings.bluetooth.deviceListGroup" = "Elenco del pannello di stato";
+"settings.bluetooth.deviceListGroup" = "Elenco dispositivi Bluetooth";
+"settings.bluetooth.moreSettings" = "Altre impostazioni";
 "settings.bluetooth.maximumVisible" = "Numero massimo di dispositivi Bluetooth visibili";
 "settings.bluetooth.maximumVisibleDescription" = "Numero di dispositivi mostrati prima del comando Espandi.";
 "settings.bluetooth.orderTitle" = "Ordine dei dispositivi Bluetooth";
@@ -168,7 +175,9 @@
 "settings.battery.group.charging" = "Ricarica";
 "settings.battery.group.powerModes" = "Modalità energia";
 "settings.battery.group.power" = "Consumo";
-"settings.battery.noBatteryNotice" = "Questo Mac non ha una batteria, quindi lo slot superiore è nascosto per impostazione predefinita. Usa «Slot superiore» qui sotto per mostrare la potenza o il valore segnaposto 100.";
+"settings.battery.group.topMarkers" = "Indicatori superiori";
+"settings.battery.group.progress" = "Avanzamento";
+"settings.battery.noBatteryNotice" = "Questo Mac non ha una batteria, quindi lo slot superiore è nascosto per impostazione predefinita. Usa «Slot superiore» in «Icona app › Arco superiore» per mostrare la potenza o il valore segnaposto 100.";
 "settings.battery.showPercentage" = "Mostra percentuale batteria";
 "settings.battery.showChargingIndicator" = "Mostra un indicatore durante la carica o con alimentazione collegata";
 "settings.battery.chargingDescription" = "Se attivato, la percentuale diventa un fulmine o una spina durante la carica o con alimentazione collegata.";
@@ -809,3 +818,18 @@
 "settings.weather.city.search" = "Cerca";
 "settings.weather.city.none" = "Non impostata";
 "settings.weather.city.noResults" = "Nessuna città trovata";
+
+// Settings subpage labels
+"settings.subtopic.appIcon.appearance" = "Aspetto generale";
+"settings.subtopic.appIcon.ring" = "Arco superiore";
+"settings.subtopic.appIcon.bottomIndicator" = "Indicatore inferiore";
+"settings.subtopic.appIcon.middleIcon" = "Icona centrale";
+"settings.subtopic.battery.charging" = "Ricarica";
+"settings.subtopic.battery.powerMode" = "Modalità alimentazione";
+"settings.subtopic.battery.energy" = "Info energia";
+"settings.subtopic.audio.volumeControl" = "Controllo volume";
+"settings.subtopic.audio.audioDevices" = "Dispositivi audio";
+"settings.subtopic.audio.displayVolume" = "Volume display";
+"settings.subtopic.bluetooth.listeningMode" = "Modalità ascolto";
+"settings.subtopic.bluetooth.deviceBattery" = "Batteria dispositivo";
+"settings.subtopic.bluetooth.deviceManagement" = "Gestione dispositivi";
