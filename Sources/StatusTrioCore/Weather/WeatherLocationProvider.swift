@@ -22,16 +22,28 @@ final class CoreLocationWeatherLocator: NSObject, WeatherLocating {
     /// can block on locationd (see `CoreLocationWiFiNameAuthorizer`), so the
     /// delegate's report is the only source; before it arrives, no access.
     private var isAuthorized = false
+    /// Whether Core Location has reported at all. A locator created as the
+    /// panel opens is asked for a fix before that first report lands, so the
+    /// request waits briefly for it instead of reading "no access".
+    private var hasAuthorizationReport = false
+    private var authorizationWaiters: [CheckedContinuation<Void, Never>] = []
+    private let authorizationWait: Duration
 
-    init(manager: CLLocationManager = CLLocationManager(), timeout: Duration = .seconds(10)) {
+    init(
+        manager: CLLocationManager = CLLocationManager(),
+        timeout: Duration = .seconds(10),
+        authorizationWait: Duration = .seconds(3)
+    ) {
         self.manager = manager
         self.timeout = timeout
+        self.authorizationWait = authorizationWait
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyKilometer
     }
 
     func currentLocation() async -> WeatherLocation? {
+        if !hasAuthorizationReport { await waitForAuthorizationReport() }
         guard isAuthorized else { return nil }
         return await withCheckedContinuation { continuation in
             pending.append(continuation)
@@ -43,6 +55,27 @@ final class CoreLocationWeatherLocator: NSObject, WeatherLocating {
                 self?.finish(nil)
             }
         }
+    }
+
+    private func waitForAuthorizationReport() async {
+        let deadline = Task { @MainActor [weak self, authorizationWait] in
+            try? await Task.sleep(for: authorizationWait)
+            self?.releaseAuthorizationWaiters()
+        }
+        await withCheckedContinuation { continuation in
+            if hasAuthorizationReport {
+                continuation.resume()
+            } else {
+                authorizationWaiters.append(continuation)
+            }
+        }
+        deadline.cancel()
+    }
+
+    private func releaseAuthorizationWaiters() {
+        let waiting = authorizationWaiters
+        authorizationWaiters = []
+        waiting.forEach { $0.resume() }
     }
 
     private func finish(_ location: WeatherLocation?) {
@@ -67,6 +100,8 @@ extension CoreLocationWeatherLocator: CLLocationManagerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.isAuthorized = authorized
+            self.hasAuthorizationReport = true
+            self.releaseAuthorizationWaiters()
             if !authorized { self.finish(nil) }
         }
     }
