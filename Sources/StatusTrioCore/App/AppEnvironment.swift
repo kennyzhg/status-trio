@@ -434,9 +434,7 @@ final class AppEnvironment {
             vpnMonitor: VPNMonitor(),
             volumeMonitor: VolumeMonitor(outputController: CoreAudioOutputController()),
             inputMonitor: AudioInputMonitor(hardware: CoreAudioInputHardware()),
-            // The power source is not known yet; StatusBarController
-            // reselects as soon as the first battery reading lands (#255).
-            refreshInterval: settings.refreshInterval(forPluggedIn: true)
+            refreshInterval: settings.refreshInterval
         )
         let localization = Localization()
         let inputSourceController = InputSourceController()

@@ -385,10 +385,7 @@
 "accessibility.battery" = "Батарея %d%%";
 "accessibility.volume" = "Громкость %@";
 "settings.refreshInterval" = "Интервал обновления";
-"settings.refreshInterval.description" = "Как часто Status Trio проверяет изменения; можно задать отдельно для работы от аккумулятора и от сети. Частое обновление сильнее нагружает CPU.";
-"settings.refreshInterval.description.noBattery" = "Как часто Status Trio проверяет изменения. Частое обновление сильнее нагружает CPU.";
-"settings.refreshInterval.onBattery" = "Обновление от аккумулятора";
-"settings.refreshInterval.onPower" = "Обновление от сети";
+"settings.refreshInterval.description" = "Как часто Status Trio проверяет изменения. Более частое обновление увеличивает нагрузку на CPU.";
 "settings.refreshInterval.value" = "%d секунд";
 "settings.popup.order" = "Отображаемые элементы";
 "settings.popup.order.description" = "Выберите элементы, отображаемые на панели состояния, и перетаскивайте их, чтобы изменить порядок.";

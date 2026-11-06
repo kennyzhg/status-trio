@@ -90,10 +90,8 @@ final class SettingsStoreTests: XCTestCase {
         let store = SettingsStore(defaults: makeSuite().defaults)
 
         XCTAssertEqual(SettingsStore.refreshIntervalRange, 5...60)
-        XCTAssertEqual(store.refreshIntervalOnBatterySeconds, 15, accuracy: 0.001)
-        XCTAssertEqual(store.refreshIntervalOnPowerSeconds, 15, accuracy: 0.001)
-        XCTAssertEqual(store.refreshInterval(forPluggedIn: false), .seconds(15))
-        XCTAssertEqual(store.refreshInterval(forPluggedIn: true), .seconds(15))
+        XCTAssertEqual(store.refreshIntervalSeconds, 15, accuracy: 0.001)
+        XCTAssertEqual(store.refreshInterval, .seconds(15))
     }
 
     func testRefreshIntervalClampsRoundsAndPersists() {
@@ -101,20 +99,17 @@ final class SettingsStoreTests: XCTestCase {
         defer { clear(suite) }
 
         let first = SettingsStore(defaults: suite.defaults)
-        for keyPath in [\SettingsStore.refreshIntervalOnBatterySeconds, \.refreshIntervalOnPowerSeconds] {
-            first[keyPath: keyPath] = 7
-            XCTAssertEqual(first[keyPath: keyPath], 5, accuracy: 0.001)
-            first[keyPath: keyPath] = 307
-            XCTAssertEqual(first[keyPath: keyPath], 60, accuracy: 0.001)
-            first[keyPath: keyPath] = .nan
-            XCTAssertEqual(first[keyPath: keyPath], 15, accuracy: 0.001)
-        }
-        first.refreshIntervalOnBatterySeconds = 32
-        first.refreshIntervalOnPowerSeconds = 9
+        first.refreshIntervalSeconds = 7
+        XCTAssertEqual(first.refreshIntervalSeconds, 5, accuracy: 0.001)
+
+        first.refreshIntervalSeconds = 307
+        XCTAssertEqual(first.refreshIntervalSeconds, 60, accuracy: 0.001)
+
+        first.refreshIntervalSeconds = 32
+        XCTAssertEqual(first.refreshIntervalSeconds, 30, accuracy: 0.001)
 
         let second = SettingsStore(defaults: suite.defaults)
-        XCTAssertEqual(second.refreshIntervalOnBatterySeconds, 30, accuracy: 0.001)
-        XCTAssertEqual(second.refreshIntervalOnPowerSeconds, 10, accuracy: 0.001)
+        XCTAssertEqual(second.refreshIntervalSeconds, 30, accuracy: 0.001)
     }
 
     func testHighEnergyAppsRefreshIntervalDefaultsClampsRoundsAndPersists() {

@@ -302,13 +302,10 @@ final class StatusBarController: NSObject {
             self?.scheduleAccessibilityUpdate()
         }
 
-        // #255: the on-battery or on-power interval, reselected as soon as the
-        // Mac is plugged in or unplugged. A Mac with no battery always uses the
-        // on-power interval.
-        refreshIntervalCancellable = settings
-            .refreshIntervalPublisher(battery: store.$snapshot.map(\.battery).eraseToAnyPublisher())
-            .sink { [weak self] interval in
-                self?.store.setRefreshInterval(interval)
+        refreshIntervalCancellable = settings.$refreshIntervalSeconds
+            .removeDuplicates()
+            .sink { [weak self] seconds in
+                self?.store.setRefreshInterval(.seconds(Int(seconds.rounded())))
             }
 
         // The icon is the surface that keeps wanting watts while the panel is

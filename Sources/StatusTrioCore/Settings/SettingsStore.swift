@@ -133,15 +133,7 @@ final class SettingsStore: ObservableObject {
     /// icon honest without waking the CPU every 5; 5 stays available in
     /// `refreshIntervalRange` for anyone who wants the old cadence.
     static let defaultRefreshIntervalSeconds: Double = 15
-    /// The pre-#255 single interval. Read once as the migration source for both
-    /// split intervals; afterwards it mirrors the on-power interval so a build
-    /// that only knows this key still finds a sensible value.
     static let refreshIntervalDefaultsKey = "statusRefreshIntervalSeconds"
-    /// The fallback-poll interval while running on battery (#255).
-    static let refreshIntervalOnBatteryDefaultsKey = "statusRefreshIntervalOnBatterySeconds"
-    /// The fallback-poll interval while connected to power, and always on a Mac
-    /// with no battery (#255).
-    static let refreshIntervalOnPowerDefaultsKey = "statusRefreshIntervalOnPowerSeconds"
     /// QWeather account API Host. The API key is in the Keychain, never here.
     static let weatherAPIHostDefaultsKey = "weatherAPIHost"
     static let weatherLocationModeDefaultsKey = "weatherLocationMode"
@@ -918,28 +910,13 @@ final class SettingsStore: ObservableObject {
     /// re-read. Not persisted.
     @Published var weatherCredentialRevision = 0
 
-    /// Fallback-poll interval while the Mac runs on battery (#255).
-    @Published var refreshIntervalOnBatterySeconds: Double {
+    @Published var refreshIntervalSeconds: Double {
         didSet {
-            let clamped = Self.clampedRefreshInterval(refreshIntervalOnBatterySeconds)
-            guard clamped == refreshIntervalOnBatterySeconds else {
-                refreshIntervalOnBatterySeconds = clamped
+            let clamped = Self.clampedRefreshInterval(refreshIntervalSeconds)
+            guard clamped == refreshIntervalSeconds else {
+                refreshIntervalSeconds = clamped
                 return
             }
-            defaults.set(clamped, forKey: Self.refreshIntervalOnBatteryDefaultsKey)
-        }
-    }
-
-    /// Fallback-poll interval while connected to power, and always on a Mac
-    /// with no battery (#255).
-    @Published var refreshIntervalOnPowerSeconds: Double {
-        didSet {
-            let clamped = Self.clampedRefreshInterval(refreshIntervalOnPowerSeconds)
-            guard clamped == refreshIntervalOnPowerSeconds else {
-                refreshIntervalOnPowerSeconds = clamped
-                return
-            }
-            defaults.set(clamped, forKey: Self.refreshIntervalOnPowerDefaultsKey)
             defaults.set(clamped, forKey: Self.refreshIntervalDefaultsKey)
         }
     }
@@ -1228,52 +1205,8 @@ final class SettingsStore: ObservableObject {
         popupSectionOrder.filter { enabledPopupSections.contains($0) }
     }
 
-    /// The interval for the given power source (#255).
-    func refreshInterval(forPluggedIn pluggedIn: Bool) -> Duration {
-        .seconds(Int(Self.selectedRefreshIntervalSeconds(
-            onBattery: refreshIntervalOnBatterySeconds,
-            onPower: refreshIntervalOnPowerSeconds,
-            pluggedIn: pluggedIn
-        ).rounded()))
-    }
-
-    /// The interval for the current battery reading (#255).
-    func refreshInterval(for battery: BatteryStatus) -> Duration {
-        refreshInterval(forPluggedIn: Self.usesPowerRefreshInterval(battery))
-    }
-
-    nonisolated static func selectedRefreshIntervalSeconds(
-        onBattery: Double,
-        onPower: Double,
-        pluggedIn: Bool
-    ) -> Double {
-        pluggedIn ? onPower : onBattery
-    }
-
-    /// A Mac with no battery is always on power, whatever the adapter flag says.
-    nonisolated static func usesPowerRefreshInterval(_ battery: BatteryStatus) -> Bool {
-        !battery.isPresent || battery.isConnectedToPower
-    }
-
-    /// The fallback-poll interval that follows both settings and the power
-    /// source. A plug or unplug reselects at once; equal values do not repeat.
-    func refreshIntervalPublisher(
-        battery: AnyPublisher<BatteryStatus, Never>
-    ) -> AnyPublisher<Duration, Never> {
-        Publishers.CombineLatest3(
-            $refreshIntervalOnBatterySeconds.removeDuplicates(),
-            $refreshIntervalOnPowerSeconds.removeDuplicates(),
-            battery.map { Self.usesPowerRefreshInterval($0) }.removeDuplicates()
-        )
-        .map { onBattery, onPower, pluggedIn in
-            Duration.seconds(Int(Self.selectedRefreshIntervalSeconds(
-                onBattery: onBattery,
-                onPower: onPower,
-                pluggedIn: pluggedIn
-            ).rounded()))
-        }
-        .removeDuplicates()
-        .eraseToAnyPublisher()
+    var refreshInterval: Duration {
+        .seconds(Int(refreshIntervalSeconds.rounded()))
     }
 
     var visibleOutputDeviceLimit: Int? {
@@ -2105,17 +2038,9 @@ final class SettingsStore: ObservableObject {
         self.weatherManualLocation = defaults.data(forKey: Self.weatherManualLocationDefaultsKey)
             .flatMap { try? JSONDecoder().decode(WeatherLocation.self, from: $0) }
             .flatMap { $0.isValid ? $0 : nil }
-        // #255: a missing split key inherits the old single interval, so an
-        // upgrading user keeps the cadence they chose for both power sources.
-        let migratedRefreshInterval = Self.clampedRefreshInterval(
+        self.refreshIntervalSeconds = Self.clampedRefreshInterval(
             storedRefreshInterval ?? Self.defaultRefreshIntervalSeconds
         )
-        let storedOnBattery = (defaults.object(forKey: Self.refreshIntervalOnBatteryDefaultsKey) as? NSNumber)?.doubleValue
-        let storedOnPower = (defaults.object(forKey: Self.refreshIntervalOnPowerDefaultsKey) as? NSNumber)?.doubleValue
-        self.refreshIntervalOnBatterySeconds = storedOnBattery.map { Self.clampedRefreshInterval($0) }
-            ?? migratedRefreshInterval
-        self.refreshIntervalOnPowerSeconds = storedOnPower.map { Self.clampedRefreshInterval($0) }
-            ?? migratedRefreshInterval
         self.maxVisibleOutputDevices = Self.clampedOutputDeviceLimit(
             storedOutputDeviceLimit ?? Self.defaultMaxVisibleOutputDevices
         )

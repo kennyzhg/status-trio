@@ -1958,44 +1958,6 @@ final class SystemStatusStoreTests: XCTestCase {
         store.stop()
     }
 
-    /// #255: plugging in or unplugging must not wait out an old 60-second sleep.
-    /// The running wait is dropped and a full wait at the new interval starts
-    /// at once, without an extra refresh tick.
-    func testChangingRefreshIntervalRestartsTheCurrentWaitWithoutAnExtraTick() async {
-        let sleeper = ManualSleeper()
-        let battery = FakeBatteryMonitor()
-        let store = SystemStatusStore(
-            batteryMonitor: battery,
-            wifiMonitor: FakeWiFiMonitor(),
-            volumeMonitor: FakeVolumeMonitor(),
-            refreshInterval: .seconds(60),
-            sleep: { duration in await sleeper.sleep(duration) }
-        )
-
-        // Before start there is no loop to restart.
-        store.setRefreshInterval(.seconds(60))
-        store.start()
-        await sleeper.waitForCallCount(1)
-        let refreshesBeforeChange = battery.refreshCount
-
-        // An unchanged interval keeps the current wait.
-        store.setRefreshInterval(.seconds(60))
-        // The new wait starts without the first one being released.
-        store.setRefreshInterval(.seconds(5))
-        await sleeper.waitForCallCount(2)
-        XCTAssertEqual(sleeper.durations, [.seconds(60), .seconds(5)])
-
-        // The abandoned wait ending later does not tick.
-        sleeper.releaseNext()
-        await sleeper.waitForCompletionCount(1)
-        await Task.yield()
-        XCTAssertEqual(battery.refreshCount, refreshesBeforeChange)
-        XCTAssertEqual(sleeper.callCount, 2)
-
-        store.stop()
-        sleeper.releaseAll()
-    }
-
     func testFallbackSleepToleranceCoversTheAdjustableRange() {
         // A fifth of the interval. The fallback poll is a safety net behind the
         // push channels, so macOS may slide it onto another timer, but the sampling

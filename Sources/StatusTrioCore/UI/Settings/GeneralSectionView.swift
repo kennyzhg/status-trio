@@ -25,47 +25,6 @@ struct GeneralSectionView: View {
         }
     }
 
-    /// Without a status store (previews, tests) assume a battery, so both rows
-    /// stay reachable.
-    var showsOnBatteryRefreshInterval: Bool {
-        statusStore?.snapshot.battery.isPresent ?? true
-    }
-
-    /// One 5–60 s slider. Each row carries its own accessibility label so the
-    /// two sliders never read out as the same control.
-    private func refreshIntervalRow(
-        title: String,
-        subtitle: String?,
-        value: Binding<Double>
-    ) -> some View {
-        let valueText = localization.format(.settingsRefreshIntervalValue, Int(value.wrappedValue))
-        return SettingsRow(
-            "arrow.clockwise",
-            tint: .orange,
-            title: title,
-            subtitle: subtitle
-        ) {
-            HStack(spacing: 8) {
-                Slider(
-                    value: Binding(
-                        get: { value.wrappedValue },
-                        set: { value.wrappedValue = ($0 / 5).rounded() * 5 }
-                    ),
-                    in: SettingsStore.refreshIntervalRange
-                )
-                .frame(width: 130)
-                .controlSize(.small)
-                .accessibilityLabel(title)
-                .accessibilityValue(valueText)
-
-                Text(valueText)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 50, alignment: .trailing)
-            }
-        }
-    }
-
     private var systemGroup: some View {
         // The pane is already "General", so the first card carries no repeated
         // section title.
@@ -154,28 +113,41 @@ struct GeneralSectionView: View {
 
             SettingsDivider()
 
-            // Status refresh interval, split by power source (#255). A Mac with
-            // no battery always runs on power, so it only gets that row.
-            if showsOnBatteryRefreshInterval {
-                refreshIntervalRow(
-                    title: localization.string(.settingsRefreshIntervalOnBattery),
-                    subtitle: localization.string(.settingsRefreshIntervalDescription),
-                    value: $store.refreshIntervalOnBatterySeconds
-                )
+            // Status refresh interval
+            SettingsRow(
+                "arrow.clockwise",
+                tint: .orange,
+                title: localization.string(.settingsRefreshInterval),
+                subtitle: localization.string(.settingsRefreshIntervalDescription)
+            ) {
+                HStack(spacing: 8) {
+                    Slider(
+                        value: Binding(
+                            get: { store.refreshIntervalSeconds },
+                            set: { store.refreshIntervalSeconds = ($0 / 5).rounded() * 5 }
+                        ),
+                        in: SettingsStore.refreshIntervalRange
+                    )
+                    .frame(width: 130)
+                    .controlSize(.small)
+                    .accessibilityLabel(localization.string(.settingsRefreshInterval))
+                    .accessibilityValue(
+                        localization.format(
+                            .settingsRefreshIntervalValue,
+                            Int(store.refreshIntervalSeconds)
+                        )
+                    )
 
-                SettingsDivider()
-
-                refreshIntervalRow(
-                    title: localization.string(.settingsRefreshIntervalOnPower),
-                    subtitle: nil,
-                    value: $store.refreshIntervalOnPowerSeconds
-                )
-            } else {
-                refreshIntervalRow(
-                    title: localization.string(.settingsRefreshInterval),
-                    subtitle: localization.string(.settingsRefreshIntervalDescriptionNoBattery),
-                    value: $store.refreshIntervalOnPowerSeconds
-                )
+                    Text(
+                        localization.format(
+                            .settingsRefreshIntervalValue,
+                            Int(store.refreshIntervalSeconds)
+                        )
+                    )
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .trailing)
+                }
             }
         }
     }
