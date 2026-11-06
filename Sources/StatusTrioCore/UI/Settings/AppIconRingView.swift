@@ -80,7 +80,7 @@ struct AppIconRingView: View {
                         Slider(
                             value: Binding(
                                 get: { store.batterySymbolScale },
-                                set: { store.batterySymbolScale = ($0 * 20).rounded() / 20 }
+                                set: { store.setBatterySymbolScaleFromSlider(($0 * 20).rounded() / 20) }
                             ),
                             in: SettingsStore.batterySymbolScaleRange
                         )

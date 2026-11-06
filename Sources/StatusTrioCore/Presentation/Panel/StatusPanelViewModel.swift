@@ -17,9 +17,56 @@ private final class YieldingPanelPresentationUpdateScheduler: PanelPresentationU
 }
 
 @MainActor
+private struct PanelSettingsFingerprint: Equatable {
+    let sections: [PopupSection]
+    let showsBatteryPowerInfoBar: Bool
+    let batteryPowerOptions: BatteryPowerDisplayOptions
+    let showsBatteryPowerFlow: Bool
+    let showsHighEnergyApps: Bool
+    let showsLocalIPAddress: Bool
+    let returnsToSummaryOnOpen: Bool
+    let hiddenBrightnessDisplayIDs: Set<String>
+    let showsChargeToFullNowButton: Bool
+    let showsBluetoothListeningMode: Bool
+    let previewsBluetoothListeningMode: Bool
+    let previewDeviceName: String
+    let previewDeviceCount: Int
+    let previewLanguageCode: String
+    let showsBluetoothBatteryLevels: Bool
+    let showsNearbyBluetoothBatteryDevices: Bool
+    let bluetoothDeviceListOptions: BluetoothDeviceListOptions
+    let outputDeviceListPreferences: AudioOutputListPreferences
+    let inputDeviceListPreferences: AudioInputListPreferences
+    let externalVolumeConfigurations: [String: ExternalVolumeConfiguration]
+
+    init(settings: SettingsStore) {
+        sections = settings.visiblePopupSections
+        showsBatteryPowerInfoBar = settings.showsBatteryPowerInfoBar
+        batteryPowerOptions = settings.batteryPowerDisplayOptions
+        showsBatteryPowerFlow = settings.showsBatteryPowerFlow
+        showsHighEnergyApps = settings.showsHighEnergyApps
+        showsLocalIPAddress = settings.showsLocalIPAddress
+        returnsToSummaryOnOpen = settings.returnsToSummaryOnOpen
+        hiddenBrightnessDisplayIDs = settings.hiddenBrightnessDisplayIDs
+        showsChargeToFullNowButton = settings.showsChargeToFullNowButton
+        showsBluetoothListeningMode = settings.showsBluetoothListeningMode
+        previewsBluetoothListeningMode = settings.previewsBluetoothListeningMode
+        previewDeviceName = settings.bluetoothListeningModePreviewDeviceName
+        previewDeviceCount = settings.bluetoothListeningModePreviewDeviceCount
+        previewLanguageCode = settings.bluetoothListeningModePreviewLanguage
+        showsBluetoothBatteryLevels = settings.showsBluetoothBatteryLevels
+        showsNearbyBluetoothBatteryDevices = settings.showsNearbyBluetoothBatteryDevices
+        bluetoothDeviceListOptions = settings.bluetoothDeviceListOptions
+        outputDeviceListPreferences = settings.outputDeviceListPreferences
+        inputDeviceListPreferences = settings.inputDeviceListPreferences
+        externalVolumeConfigurations = settings.externalVolumeConfigurations
+    }
+}
+
+@MainActor
 final class StatusPanelViewModel: ObservableObject {
-    private struct RefreshRegions: OptionSet {
-        let rawValue: UInt8
+    struct RefreshRegions: OptionSet {
+        let rawValue: UInt16
         static let batteryDetails = Self(rawValue: 1 << 0)
         static let wifiDetails = Self(rawValue: 1 << 1)
         static let wiredDetailsAndNetwork = Self(rawValue: 1 << 2)
@@ -108,6 +155,7 @@ final class StatusPanelViewModel: ObservableObject {
     private var weatherController: WeatherController?
     private let makeWeatherController: () -> WeatherController
     private let chargeToFullNow: ChargeToFullNowController?
+    private let vpnPower: VPNPowerController
     private let updateScheduler: any PanelPresentationUpdateScheduling
     let actions: StatusPanelActions
     private var cancellables: Set<AnyCancellable> = []
@@ -132,6 +180,8 @@ final class StatusPanelViewModel: ObservableObject {
     /// gesture responsive in between.
     static let levelVolumePublishInterval: Duration = .milliseconds(100)
     private var pendingRefreshRegions: RefreshRegions = []
+    private var lastPanelSettingsFingerprint: PanelSettingsFingerprint?
+    private var panelSettingsCheckScheduled = false
     private var lifecycleGeneration = 0
 
     /// Tests observe deliveries from the single popup-snapshot subscription
@@ -148,7 +198,8 @@ final class StatusPanelViewModel: ObservableObject {
         updateScheduler: any PanelPresentationUpdateScheduling = YieldingPanelPresentationUpdateScheduler(),
         inputSourceController: InputSourceController? = nil,
         chargeToFullNow: ChargeToFullNowController? = nil,
-        weatherController: WeatherController? = nil
+        weatherController: WeatherController? = nil,
+        vpnPower: VPNPowerController? = nil
     ) {
         let resolvedInputSourceController = inputSourceController ?? InputSourceController()
         self.store = store
@@ -159,6 +210,7 @@ final class StatusPanelViewModel: ObservableObject {
         self.weatherController = weatherController
         self.makeWeatherController = { WeatherController(settings: settings) }
         self.chargeToFullNow = chargeToFullNow
+        self.vpnPower = vpnPower ?? store.vpnPower
         self.updateScheduler = updateScheduler
         self.actions = actions
         visiblePopupSections = settings.visiblePopupSections
@@ -233,6 +285,8 @@ final class StatusPanelViewModel: ObservableObject {
         guard !isStarted else { return }
         isStarted = true
         lifecycleGeneration &+= 1
+        lastPanelSettingsFingerprint = PanelSettingsFingerprint(settings: settings)
+        panelSettingsCheckScheduled = false
         let sections = settings.visiblePopupSections
         if visiblePopupSections != sections { visiblePopupSections = sections }
         subscribeToPopupPresentationSources()
@@ -295,8 +349,14 @@ final class StatusPanelViewModel: ObservableObject {
         // Non-section settings are delivered from `willSet`; only queue the
         // remap here. The scheduler drains after this mutation commits, so its
         // refresh reads the new stored values.
+        //
+        // `objectWillChange` covers every one of the store's ~90 properties,
+        // including ones no panel row reads (icon size, app icon, telemetry).
+        // A snapshot of the settings the panel actually consumes gates the
+        // remap, so a slider drag that does not affect the panel no longer
+        // re-maps every row while it moves.
         settings.objectWillChange
-            .sink { [weak self] in self?.coalesceControllerUpdate(.all) }
+            .sink { [weak self] in self?.schedulePanelSettingsCheck() }
             .store(in: &cancellables)
         localization.$resolvedLanguage
             .dropFirst()
@@ -309,10 +369,13 @@ final class StatusPanelViewModel: ObservableObject {
         isStarted = false
         lifecycleGeneration &+= 1
         pendingRefreshRegions = []
+        lastPanelSettingsFingerprint = nil
+        panelSettingsCheckScheduled = false
         volumeDeviceRowsLoaded = false
         cancelLevelVolumePublish()
         lastLiveVolumeStatus = nil
         sourceDemandCancellables.removeAll()
+        store.mihomoTunnel.deactivate()
         subscribedSourceDemand = nil
         chargeToFullNow?.clearDemand()
         chargeToFullNowPresentation = .hidden
@@ -496,7 +559,9 @@ final class StatusPanelViewModel: ObservableObject {
     }
 
     private func mapVPN(_ status: VPNStatus) -> PanelSummaryState? {
-        PanelPresentationMapper.vpn(status, localization: localization)
+        PanelPresentationMapper.vpn(
+            status, powerState: vpnPower.state, localization: localization
+        )
     }
 
     private func mapVolume(_ status: VolumeStatus) -> VolumePanelState {
@@ -810,11 +875,14 @@ final class StatusPanelViewModel: ObservableObject {
         subscribedSourceDemand = demand
 
         if demand.contains(.vpn) {
-            store.$vpnStatus
+            store.mihomoTunnel.activate()
+            Publishers.CombineLatest(store.$vpnStatus, vpnPower.$state)
                 .dropFirst()
-                .compactMap { [weak self] status -> PanelSummaryState? in
+                .compactMap { [weak self] status, powerState -> PanelSummaryState? in
                     guard let self, isVisible(.vpn) else { return nil }
-                    return mapVPN(status)
+                    return PanelPresentationMapper.vpn(
+                        status, powerState: powerState, localization: localization
+                    )
                 }
                 .removeDuplicates()
                 .sink { [weak self] state in
@@ -823,6 +891,7 @@ final class StatusPanelViewModel: ObservableObject {
                 }
                 .store(in: &sourceDemandCancellables)
         }
+        if !demand.contains(.vpn) { store.mihomoTunnel.deactivate() }
         if demand.contains(.volume) {
             store.$liveVolume
                 .dropFirst()
@@ -1099,6 +1168,25 @@ final class StatusPanelViewModel: ObservableObject {
     }
 
 
+    /// Queues one settings check per run-loop turn. `objectWillChange` fires
+    /// before the value is stored, so the comparison has to happen after a
+    /// yield; by then a burst of writes has settled and the newest values are
+    /// read once.
+    private func schedulePanelSettingsCheck() {
+        guard isStarted, !panelSettingsCheckScheduled else { return }
+        panelSettingsCheckScheduled = true
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self else { return }
+            self.panelSettingsCheckScheduled = false
+            guard self.isStarted else { return }
+            let next = PanelSettingsFingerprint(settings: self.settings)
+            guard next != self.lastPanelSettingsFingerprint else { return }
+            self.lastPanelSettingsFingerprint = next
+            self.coalesceControllerUpdate(.all)
+        }
+    }
+
     private func coalesceControllerUpdate(_ regions: RefreshRegions) {
         guard isStarted else { return }
         let shouldSchedule = pendingRefreshRegions.isEmpty
@@ -1138,7 +1226,7 @@ final class StatusPanelViewModel: ObservableObject {
                 )
             }
             if regions.contains(.vpn), isVisible(.vpn) {
-                publishVPN(PanelPresentationMapper.vpn(store.vpnStatus, localization: localization))
+                publishVPN(mapVPN(store.vpnStatus))
             }
         }
     }
