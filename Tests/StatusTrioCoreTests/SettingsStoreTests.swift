@@ -89,45 +89,32 @@ final class SettingsStoreTests: XCTestCase {
     func testRefreshIntervalDefaultsAndRange() {
         let store = SettingsStore(defaults: makeSuite().defaults)
 
-        XCTAssertEqual(SettingsStore.refreshIntervalOnBatteryRange, 5...60)
-        XCTAssertEqual(SettingsStore.refreshIntervalOnPowerRange, 1...60)
+        XCTAssertEqual(SettingsStore.refreshIntervalRange, 5...60)
         XCTAssertEqual(store.refreshIntervalOnBatterySeconds, 15, accuracy: 0.001)
-        XCTAssertEqual(store.refreshIntervalOnPowerSeconds, 5, accuracy: 0.001)
+        XCTAssertEqual(store.refreshIntervalOnPowerSeconds, 15, accuracy: 0.001)
         XCTAssertEqual(store.refreshInterval(forPluggedIn: false), .seconds(15))
-        XCTAssertEqual(store.refreshInterval(forPluggedIn: true), .seconds(5))
+        XCTAssertEqual(store.refreshInterval(forPluggedIn: true), .seconds(15))
     }
 
-    func testOnBatteryIntervalClampsToTwoSecondStepsAndPersists() {
+    func testRefreshIntervalClampsRoundsAndPersists() {
         let suite = makeSuite()
         defer { clear(suite) }
 
         let first = SettingsStore(defaults: suite.defaults)
-        let expectations: [(Double, Double)] = [
-            (1, 5), (6, 7), (8, 9), (15, 15), (16, 17), (58.9, 59), (59.5, 59),
-            (60, 60), (307, 60), (.nan, 15)
-        ]
-        for (input, expected) in expectations {
-            first.refreshIntervalOnBatterySeconds = input
-            XCTAssertEqual(first.refreshIntervalOnBatterySeconds, expected, accuracy: 0.001, "\(input)")
+        for keyPath in [\SettingsStore.refreshIntervalOnBatterySeconds, \.refreshIntervalOnPowerSeconds] {
+            first[keyPath: keyPath] = 7
+            XCTAssertEqual(first[keyPath: keyPath], 5, accuracy: 0.001)
+            first[keyPath: keyPath] = 307
+            XCTAssertEqual(first[keyPath: keyPath], 60, accuracy: 0.001)
+            first[keyPath: keyPath] = .nan
+            XCTAssertEqual(first[keyPath: keyPath], 15, accuracy: 0.001)
         }
-        first.refreshIntervalOnBatterySeconds = 33
-        XCTAssertEqual(SettingsStore(defaults: suite.defaults).refreshIntervalOnBatterySeconds, 33, accuracy: 0.001)
-    }
+        first.refreshIntervalOnBatterySeconds = 32
+        first.refreshIntervalOnPowerSeconds = 9
 
-    func testOnPowerIntervalClampsToOneSecondStepsAndPersists() {
-        let suite = makeSuite()
-        defer { clear(suite) }
-
-        let first = SettingsStore(defaults: suite.defaults)
-        let expectations: [(Double, Double)] = [
-            (0, 1), (1, 1), (2.4, 2), (2.6, 3), (5, 5), (59.6, 60), (307, 60), (.nan, 5)
-        ]
-        for (input, expected) in expectations {
-            first.refreshIntervalOnPowerSeconds = input
-            XCTAssertEqual(first.refreshIntervalOnPowerSeconds, expected, accuracy: 0.001, "\(input)")
-        }
-        first.refreshIntervalOnPowerSeconds = 3
-        XCTAssertEqual(SettingsStore(defaults: suite.defaults).refreshIntervalOnPowerSeconds, 3, accuracy: 0.001)
+        let second = SettingsStore(defaults: suite.defaults)
+        XCTAssertEqual(second.refreshIntervalOnBatterySeconds, 30, accuracy: 0.001)
+        XCTAssertEqual(second.refreshIntervalOnPowerSeconds, 10, accuracy: 0.001)
     }
 
     func testHighEnergyAppsRefreshIntervalDefaultsClampsRoundsAndPersists() {

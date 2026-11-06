@@ -24,10 +24,10 @@ final class RefreshIntervalByPowerSourceTests: XCTestCase {
 
     func testOldSingleIntervalSeedsBothSplitIntervals() throws {
         let defaults = try makeDefaults()
-        defaults.set(25.0, forKey: SettingsStore.refreshIntervalDefaultsKey)
+        defaults.set(30.0, forKey: SettingsStore.refreshIntervalDefaultsKey)
         let settings = SettingsStore(defaults: defaults)
-        XCTAssertEqual(settings.refreshIntervalOnBatterySeconds, 25, accuracy: 0.001)
-        XCTAssertEqual(settings.refreshIntervalOnPowerSeconds, 25, accuracy: 0.001)
+        XCTAssertEqual(settings.refreshIntervalOnBatterySeconds, 30, accuracy: 0.001)
+        XCTAssertEqual(settings.refreshIntervalOnPowerSeconds, 30, accuracy: 0.001)
     }
 
     func testOutOfRangeOldIntervalIsClampedDuringMigration() throws {
@@ -36,21 +36,6 @@ final class RefreshIntervalByPowerSourceTests: XCTestCase {
         let settings = SettingsStore(defaults: defaults)
         XCTAssertEqual(settings.refreshIntervalOnBatterySeconds, 60, accuracy: 0.001)
         XCTAssertEqual(settings.refreshIntervalOnPowerSeconds, 60, accuracy: 0.001)
-    }
-
-    func testOldIntervalOffTheBatteryGridSnapsToTheNearestStep() throws {
-        // The old slider stored multiples of 5; 10 is not on the 5, 7, 9 … grid.
-        let defaults = try makeDefaults()
-        defaults.set(10.0, forKey: SettingsStore.refreshIntervalDefaultsKey)
-        let settings = SettingsStore(defaults: defaults)
-        XCTAssertEqual(settings.refreshIntervalOnBatterySeconds, 11, accuracy: 0.001)
-        XCTAssertEqual(settings.refreshIntervalOnPowerSeconds, 10, accuracy: 0.001)
-    }
-
-    func testFreshInstallUsesTheSplitDefaults() throws {
-        let settings = SettingsStore(defaults: try makeDefaults())
-        XCTAssertEqual(settings.refreshIntervalOnBatterySeconds, 15, accuracy: 0.001)
-        XCTAssertEqual(settings.refreshIntervalOnPowerSeconds, 5, accuracy: 0.001)
     }
 
     func testStoredSplitIntervalsWinOverTheOldKey() throws {
@@ -101,11 +86,11 @@ final class RefreshIntervalByPowerSourceTests: XCTestCase {
         battery.send(BatteryStatus(rawPercentage: 61, isPresent: true, isCharging: true,
                                    isLowPowerMode: false, isConnectedToPower: true))
         battery.send(onBattery)
-        settings.refreshIntervalOnBatterySeconds = 31
+        settings.refreshIntervalOnBatterySeconds = 30
         // Changing the inactive interval leaves the active one alone.
         settings.refreshIntervalOnPowerSeconds = 20
         cancellable.cancel()
 
-        XCTAssertEqual(received, [.seconds(60), .seconds(10), .seconds(60), .seconds(31)])
+        XCTAssertEqual(received, [.seconds(60), .seconds(10), .seconds(60), .seconds(30)])
     }
 }
