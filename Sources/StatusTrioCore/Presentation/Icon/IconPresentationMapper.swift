@@ -95,31 +95,17 @@ enum IconPresentationMapper {
         // level: `percentage` reports a placeholder 100, and showing it would
         // claim a charged battery that does not exist.
         // Fork (#274): a top slot replaced with text (watts) keeps its value on
-        // the empty track, and an explicit "Battery" choice keeps the
-        // placeholder 100 the user asked for.
-        if !battery.isPresent {
-            switch topSlot {
-            case .battery:
-                break
-            case .hidden:
-                return OuterRingState(
-                    segments: [RingSegmentState(progress: 0, color: .primary)],
-                    gap: .closed,
-                    accessory: nil,
-                    effect: nil,
-                    strokeScale: options.ringStrokeScale,
-                    gapProgressMode: .absorbed
-                )
-            case .text(let text):
-                return OuterRingState(
-                    segments: [RingSegmentState(progress: 0, color: .primary)],
-                    gap: .value,
-                    accessory: .text(IconTextState(text: text, color: .primary, scale: options.textScale)),
-                    effect: nil,
-                    strokeScale: options.ringStrokeScale,
-                    gapProgressMode: .absorbed
-                )
-            }
+        // the empty track; every other choice leaves the gap closed.
+        guard battery.isPresent else {
+            let text: String? = if case .text(let text) = topSlot { text } else { nil }
+            return OuterRingState(
+                segments: [RingSegmentState(progress: 0, color: .primary)],
+                gap: text == nil ? .closed : .value,
+                accessory: text.map { .text(IconTextState(text: $0, color: .primary, scale: options.textScale)) },
+                effect: nil,
+                strokeScale: options.ringStrokeScale,
+                gapProgressMode: .absorbed
+            )
         }
         let role = options.usesStatusColors
             ? StatusMappings.batteryColorRole(

@@ -54,8 +54,8 @@ final class IconPresentationMapperTests: XCTestCase {
     }
 
     func testBatteryGapHonorsPresencePercentageAndPowerOptions() {
-        // `.battery` pins the historical look; `.automatic` hides the slot on
-        // a Mac with no battery instead (#274, BatteryTopSlotTests).
+        // `.battery` pins the top slot to the battery; with no battery it still
+        // draws the empty track (upstream 1.9.4, BatteryTopSlotTests).
         let options = BatteryIconOptions(showsPercentage: true, showsChargingIndicator: true,
                                          connectedIndicator: .percentage, topSlotContent: .battery)
         let connectedFull = BatteryStatus(rawPercentage: 100, isPresent: true, isCharging: false,
@@ -618,11 +618,6 @@ final class IconPresentationMapperTests: XCTestCase {
         // empty track and the centre falls back to the network glyph.
         XCTAssertEqual(scene.outerRing?.segments.first?.progress, 0)
         XCTAssertNil(scene.outerRing?.accessory)
-        // Fork (#274): an explicit "Battery" top slot keeps the placeholder
-        // instead of the empty track, so this mode still has no ring to close.
-        let pinned = chargingScene(battery: absent, source: .chargingStatus,
-                                   batteryOptions: BatteryIconOptions(topSlotContent: .battery))
-        XCTAssertNotEqual(pinned.outerRing?.gap, .closed)
         guard case .symbol? = scene.center else {
             return XCTFail("expected the network glyph fallback")
         }
