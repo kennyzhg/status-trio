@@ -70,6 +70,11 @@
 "settings.appIcon.middleIcon.size.description" = "One size for every middle content: Wi-Fi, Bluetooth, input source, and numbers.";
 "settings.appIcon.middleIcon.networkWarnings" = "Show network problems instead";
 "settings.appIcon.middleIcon.networkWarnings.description" = "When the Mac is genuinely offline, the middle shows the network state instead of the selected source.";
+"settings.appIcon.middleIcon.inputSourceMarker" = "Pinyin icon";
+"settings.appIcon.middleIcon.inputSourceMarker.description" = "How Apple's Simplified and Traditional Pinyin input sources draw their middle icon.";
+"settings.appIcon.middleIcon.inputSourceMarker.systemIcon" = "System icon";
+"settings.appIcon.middleIcon.inputSourceMarker.script" = "简 / 繁";
+"settings.appIcon.middleIcon.inputSourceMarker.zhong" = "中";
 "settings.network.connectionIcons" = "Connection Icon Style";
 "settings.network.connectionIcons.description" = "When enabled, the selected state uses the standard Wi-Fi signal icon instead of its special mark.";
 "settings.network.wifiIconForEthernet" = "Use Wi-Fi icon for Ethernet";
@@ -182,8 +187,12 @@
 "settings.battery.group.power" = "Power";
 "settings.battery.group.topMarkers" = "Top Markers";
 "settings.battery.group.progress" = "Progress";
-"settings.battery.noBatteryNotice" = "This Mac has no battery, so the top slot is hidden by default. Use Top Slot in App Icon › Top Arc to show power or the placeholder 100 instead.";
+"settings.battery.noBatteryNotice" = "This device has no battery, so the battery percentage is not displayed.";
+"settings.battery.noBatteryTopIndicator" = "Top indicator";
+"settings.battery.noBatteryTopIndicatorDescription" = "This Mac has no battery, so this icon is only decorative: it draws a lightning bolt or plug in the ring's gap and does not reflect real charging.";
+"settings.battery.noBatteryGapIcon" = "Gap icon";
 "settings.battery.showPercentage" = "Show battery percentage";
+"settings.battery.showPercentageNoBattery" = "This device has no battery.";
 "settings.battery.showChargingIndicator" = "Show an indicator while charging or connected to power";
 "settings.battery.chargingDescription" = "When enabled, the percentage becomes a bolt or plug while charging or connected to power.";
 "settings.battery.splitGapProgress" = "Split progress when the top gap is filled";
@@ -204,17 +213,28 @@
 "settings.battery.connectedIndicator.bolt" = "Bolt";
 "settings.battery.connectedIndicator.percentage" = "Percentage";
 "settings.battery.topSlot" = "Top Slot";
-"settings.battery.topSlotDescription" = "What the top of the ring shows. Automatic shows the battery on a Mac with a battery and hides the slot on a Mac without one.";
+"settings.battery.topSlotDescription" = "What the top of the ring shows. Automatic and Battery follow the top markers below; Hidden closes the gap; Power shows watts.";
 "settings.battery.topSlot.automatic" = "Automatic";
 "settings.battery.topSlot.battery" = "Battery";
 "settings.battery.topSlot.hidden" = "Hidden";
 "settings.battery.topSlot.power" = "Power (Watts)";
 "settings.battery.topSlot.powerWhenPluggedIn" = "Watts on Power, % on Battery";
+"settings.battery.marker.onBattery" = "On battery";
+"settings.battery.marker.charging" = "Charging";
+"settings.battery.marker.connected" = "Connected, not charging";
+"settings.battery.marker.hidden" = "Hidden";
 "settings.battery.symbolScale" = "Percentage/bolt size";
 "settings.battery.symbolScaleAccessibility" = "Battery percentage and bolt size";
 "settings.battery.symbolScaleDescription" = "The percentage and bolt share this size.";
 "settings.battery.statusColors" = "Color the arc by battery state";
 "settings.battery.statusColorsDescription" = "Defaults are green for power, yellow for Low Power Mode, and red for low battery. Change them below. Turning this off ignores saved custom colors.";
+"settings.battery.monochromeCharging" = "Black & white when charging or on power";
+"settings.battery.monochromeChargingDescription" = "Draw the ring in black or white while charging or connected to power. Low Power Mode and High Power Mode keep their own colours. A Mac with no battery defaults to this.";
+
+"settings.battery.developerPreview" = "Developer preview";
+"settings.battery.simulateNoBattery" = "Simulate no battery";
+"settings.battery.simulateNoBatteryDescription" = "Show this page as it looks on a Mac with no battery. Development builds only.";
+"settings.battery.noBatteryHiddenOptions" = "This Mac has no battery: the percentage and charging indicator do not apply. The ring is black and white by default; turn it off above to use the connected-power colour. Low Power Mode and High Power Mode keep their colours.";
 "settings.battery.colors.charging" = "Charging / connected power";
 "settings.battery.colors.lowPower" = "Low Power Mode";
 "settings.battery.colors.critical" = "Critically low battery";
@@ -236,9 +256,10 @@
 "settings.battery.criticalThreshold" = "Critical Battery Threshold";
 "settings.battery.criticalThresholdDescription" = "Below this level the battery icon uses the critical battery colour.";
 "settings.battery.fullThreshold" = "Full ring level";
-"settings.battery.fullThresholdDescription" = "The battery ring counts as full at this level. Useful when charge limiting holds the battery below 100%.";
+"settings.battery.fullThresholdDescription" = "Only while on power: the ring is full at this level. On battery it uses the real level.";
 "settings.battery.fullThresholdUseChargeLimit" = "Use the charge limit";
-"settings.battery.fullThresholdSystemUnavailable" = "This Mac does not report its charge limit, so the value cannot be read.";
+"settings.battery.fullThresholdSystemUnavailable" = "Couldn't read the current system charge limit. Check it in System Settings → Battery → Charging, in the ⓘ on the right.";
+"settings.battery.fullThresholdOpenSystemSettings" = "Open System Settings";
 "settings.updates.title" = "Updates";
 "settings.updates.automatic" = "Automatically check for updates";
 "settings.updates.check" = "Check for Updates…";
@@ -248,6 +269,7 @@
 "battery.state.notPresent" = "No battery";
 "battery.state.charged" = "Fully charged";
 "battery.state.calculatingTimeToFull" = "Calculating time to full";
+"battery.timeRemaining" = "About %@ remaining";
 "battery.timeToFull.minutes" = "About %d min to full";
 "battery.timeToFull.hours" = "About %d h to full";
 "battery.timeToFull.hoursMinutes" = "About %d h %d min to full";
@@ -534,6 +556,9 @@
 "settings.audio.indicatorStyleDescription" = "Choose whether volume displays as four discrete dots or a continuous bottom arc.";
 "settings.audio.indicatorStyle.dots" = "Dots";
 "settings.audio.indicatorStyle.arc" = "Arc";
+"settings.audio.airPodsInlineControlsTitle" = "Headphone Controls";
+"settings.audio.airPodsInlineControls" = "Show AirPods controls on the volume panel";
+"settings.audio.airPodsInlineControlsDescription" = "Show Conversation Awareness, Spatial Audio, and Adaptive controls beside your AirPods output. Disable to hide these private-API controls.";
 
 // On-demand battery details.
 "battery.details.title" = "Battery Details";
@@ -547,11 +572,13 @@
 "battery.details.current" = "Battery current";
 "battery.details.sampled" = "Battery sampled at";
 "battery.details.adapter" = "Adapter rating";
+"battery.details.inputPort" = "Charging port";
 "battery.details.remaining" = "Time remaining";
 "battery.details.cycles" = "Cycle count";
 "battery.details.uptime" = "System uptime";
 "battery.details.maxCapacity" = "Maximum capacity";
 "battery.details.batteryCondition" = "Battery status";
+"battery.details.temperature" = "Battery temperature";
 "battery.details.condition.normal" = "Normal";
 "battery.details.condition.service" = "Service recommended";
 "battery.details.lowPower" = "Low Power Mode";
@@ -690,7 +717,7 @@
 "battery.energy.monitoringDescription" = "When enabled, samples app activity in the background even while the panel is closed. Sampling pauses during sleep, when disabled, or when Status Trio quits.";
 "settings.battery.showChargeToFullNow" = "Show Charge to Full Now Button";
 "settings.battery.showChargeToFullNowDescription" = "Show a button in the status panel to temporarily override the macOS charge limit or an Optimized Battery Charging pause and charge to 100%.";
-"settings.battery.chargeToFullNowOptimizedNote" = "When the charge limit is 100% and Optimized Battery Charging pauses charging, Charge to Full Now resumes charging without a Cancel button or applying the restore limit below.";
+"settings.battery.chargeToFullNowOptimizedNote" = "This button matches the “Charge to Full Now” action built into the macOS battery menu.";
 "settings.battery.chargeHidden.unsupportedSystem" = "Button hidden: Requires macOS 26.4 or later";
 "settings.battery.chargeHidden.unsupportedArchitecture" = "Button hidden: Requires a Mac with Apple silicon";
 "settings.battery.chargeHidden.frameworkUnavailable" = "Button hidden: System charging framework unavailable";
@@ -703,7 +730,6 @@
 "settings.battery.chargeHidden.stateReadFailed" = "Button hidden: Couldn’t read system charging state. Reopen this page later";
 "settings.battery.chargeHidden.noActiveChargeLimit" = "Button hidden: The battery-optimized charge limit is 100%, so this button isn't needed";
 "settings.battery.chargeHidden.unrecognizedChargeLimitState" = "Button hidden: System charge limit cannot currently be overridden";
-"settings.battery.chargeHidden.restoredLimit" = "Button hidden: Restoring the %d%% limit; waiting for charging to settle";
 "settings.battery.chargeHidden.controllerUnavailable" = "Button hidden: Charging control is temporarily unavailable";
 "settings.battery.restoreLimit" = "Restore Limit After Cancelling";
 "settings.battery.restoreLimitDescription" = "The charge limit to restore when you cancel Charge to Full Now.";
@@ -723,6 +749,25 @@
 "battery.action.cancelChargeToFullNowConfirmFallback" = "Confirm Set to %d%%";
 "battery.action.cancelChargeToFullNowConfirmation" = "The system charge state may have changed. Click again to continue.";
 "battery.action.cancelChargeToFullNowPending" = "The system has not confirmed the temporary override yet. Try again shortly.";
+
+// AirPods system controls
+"airPods.controls" = "AirPods Controls…";
+"airPods.adaptive" = "Adaptive Audio";
+"airPods.lessNoise" = "Less Noise";
+"airPods.moreNoise" = "More Noise";
+"airPods.adaptiveUnavailable" = "Adaptive adjustment is unavailable over Bluetooth.";
+"airPods.spatial" = "Spatialize Stereo";
+"airPods.conversation" = "Conversation Awareness";
+"airPods.routeChanged" = "The selected AirPods changed or disconnected. Reopen controls for the current output.";
+"airPods.unconfirmed" = "macOS did not confirm the change. Refresh to read the actual setting.";
+"airPods.unavailable" = "Direct Bluetooth control is unavailable.";
+"airPods.notAvailable" = "Unavailable";
+"airPods.apply" = "Apply";
+
+"airPods.spatialFixed" = "Fixed";
+"airPods.spatialHeadTracked" = "Head Tracked";
+
+"airpods.retry" = "Retry";
 "settings.popup.order.brightness" = "Brightness";
 "brightness.row.accessibility" = "Brightness for %@, %@";
 "brightness.row.accessibilityUnavailable" = "Brightness for %@, %@";
@@ -794,6 +839,13 @@
 "settings.brightness.compatibility.title" = "Can't control a display?";
 "settings.brightness.compatibility.description" = "Display vendors implement DDC differently, so Status Trio can't cover every model. If a display's brightness can't be adjusted here, switch it to the BetterDisplay backend — Status Trio will drive it through BetterDisplay. The free version is enough; no Pro license needed.";
 "settings.brightness.compatibility.link" = "Download BetterDisplay (free)";
+"settings.brightness.betterDisplay.manualHint" = "If this display's brightness is still unavailable, switch the BetterDisplay display above manually.";
+"settings.brightness.betterDisplay.display" = "BetterDisplay Display";
+"settings.brightness.betterDisplay.automatic" = "Automatic (match by system display)";
+"settings.brightness.betterDisplay.unnamed" = "Unnamed display";
+"settings.brightness.betterDisplay.saved" = "Saved";
+"settings.brightness.betterDisplay.unavailable" = "Unavailable";
+"settings.brightness.betterDisplay.refresh" = "Refresh devices";
 "settings.battery.colors.highPower" = "High Power Mode";
 "battery.lowPowerMode.autoEnable" = "Auto-enable Low Power Mode";
 "battery.lowPowerMode.autoEnableDescription" = "When unplugged, Low Power Mode turns on automatically once the battery drops below the low-battery threshold. Once per low-battery cycle.";
@@ -812,6 +864,8 @@
 
 "settings.network.powerControl" = "Show Wi-Fi Power Control";
 "settings.network.powerControlDescription" = "Adds a Wi-Fi power button to the status panel.";
+"settings.network.confirmBeforePowerOff" = "Confirm Before Turning Off Wi-Fi";
+"settings.network.confirmBeforePowerOffDescription" = "Ask before turning Wi-Fi off while connected.";
 "wifi.power.turnOn" = "Turn Wi-Fi on";
 "wifi.power.turnOff" = "Turn Wi-Fi off";
 "wifi.power.unknown" = "Wi-Fi status is unavailable.";
@@ -865,3 +919,7 @@
 "settings.subtopic.bluetooth.listeningMode" = "Listening Mode";
 "settings.subtopic.bluetooth.deviceBattery" = "Device Battery";
 "settings.subtopic.bluetooth.deviceManagement" = "Device Management";
+"settings.audio.spatialAudioControlsTitle" = "Show Spatial Audio controls";
+"settings.audio.spatialAudioControlsDescription" = "Shows the Spatial Audio options (Off/Fixed/Head Tracking) on the AirPods output row. Currently AirPods only.";
+"settings.audio.conversationAwarenessControlsTitle" = "Show Conversation Awareness controls";
+"settings.audio.conversationAwarenessControlsDescription" = "Shows the Conversation Awareness toggle on the AirPods output row. Currently AirPods only.";

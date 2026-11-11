@@ -264,16 +264,18 @@ struct RingStrokeStylePreview: View {
             status: menuBarPreviewStatus(from: statusStore),
             configuration: IconPresentationConfiguration(
                 battery: BatteryIconOptions(
-                    showsPercentage: store.showsBatteryPercentage,
-                    showsChargingIndicator: store.showsChargingIndicator,
                     splitGapProgress: store.batterySplitGapProgress,
                     usesStatusColors: store.usesBatteryStatusColors,
                     criticalThreshold: Int(store.batteryCriticalThreshold.rounded()),
-                    connectedIndicator: store.batteryConnectedIndicator,
                     fullThreshold: Int(store.batteryFullThreshold.rounded()),
                     textScale: store.batterySymbolScale * BatteryIconOptions.defaultTextScale,
                     ringStrokeScale: style.scale,
                     batteryStatusColors: store.batteryStatusColors,
+                    onBatteryMarker: store.batteryOnBatteryMarker,
+                    chargingMarker: store.batteryChargingMarker,
+                    connectedMarker: store.batteryConnectedMarker,
+                    noBatteryMarker: store.batteryNoBatteryMarker,
+                    monochromeCharging: store.monochromeChargingRing,
                     topSlotContent: store.batteryTopSlotContent
                 ),
                 connection: store.connectionIconOptions,
@@ -282,7 +284,8 @@ struct RingStrokeStylePreview: View {
                     ringStrokeScale: style.scale
                 ),
                 bluetooth: .standard
-            )
+            ),
+            isHighPowerMode: statusStore.highPowerMode.isHighPowerMode
         )
     }
 

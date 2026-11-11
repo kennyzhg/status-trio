@@ -69,6 +69,8 @@ extension PrivilegedHelperManager: HelperReadinessProviding {
 
 @MainActor
 final class SystemStatusStore: ObservableObject {
+    let airPodsConversationCache = AirPodsConversationCache()
+
     static let popupDebounceInterval: Duration = .milliseconds(500)
 
     /// The fallback poll refreshes the battery on every tick: its percentage and
@@ -369,6 +371,8 @@ final class SystemStatusStore: ObservableObject {
         self.popupSnapshot = initialSnapshot
         self.vpnStatus = .placeholder
         self.liveVolume = initialSnapshot.volume
+        let initialOutput = initialSnapshot.volume.outputDevices.first(where: \.isCurrent) ?? initialSnapshot.volume.currentDevice
+        airPodsConversationCache.updateRoute(initialOutput.map { PanelAudioDeviceID(id: $0.id, uid: $0.uid) })
         self.liveBrightness = initialSnapshot.brightness
         bluetoothAuthorizationCancellable = bluetoothDevices.$authorizationStatus
             .sink { [weak self] _ in
@@ -448,6 +452,10 @@ final class SystemStatusStore: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.isApplicationEnergySystemAsleep = true
                 self?.updateApplicationEnergyDemand()
+                // The system gate alone pauses nearby BLE here. The display
+                // gate is a real display signal: only `screensDidSleep` sets
+                // it, so a wake cycle that never sends `screensDidWake` does
+                // not strand the scanner behind a stale display flag.
                 self?.bluetoothDevices.setSystemSleeping(true)
                 self?.reconcileBluetoothDemand()
             }
@@ -462,6 +470,7 @@ final class SystemStatusStore: ObservableObject {
                 self?.isDisplayAsleep = true
                 self?.isApplicationEnergyDisplayAsleep = true
                 self?.updateApplicationEnergyDemand()
+                self?.bluetoothDevices.setDisplaySleeping(true)
                 self?.volumeMonitor.setDisplayAsleep(true)
                 self?.brightnessMonitor.setDisplayAsleep(true)
             }
@@ -480,6 +489,10 @@ final class SystemStatusStore: ObservableObject {
                 // when its separate system-wake notification was missed.
                 self.isApplicationEnergySystemAsleep = false
                 self.updateApplicationEnergyDemand()
+                self.bluetoothDevices.setDisplaySleeping(false)
+                // The display wake proves the system is awake, so clear both
+                // gates even when the separate system wake was missed.
+                self.bluetoothDevices.setSystemSleeping(false)
                 self.volumeMonitor.setDisplayAsleep(false)
                 self.brightnessMonitor.setDisplayAsleep(false)
                 self.brightnessMonitor.topologyChanged()
@@ -689,7 +702,7 @@ final class SystemStatusStore: ObservableObject {
         localIP.deactivate()
         bluetoothDevices.releaseTransientState()
         releaseBluetoothProfilerReader()
-        bluetoothListeningModes.stop()
+        bluetoothListeningModes.shutdown()
     }
 
     var isVolumeControlAvailable: Bool {
@@ -1164,6 +1177,11 @@ final class SystemStatusStore: ObservableObject {
             isApplicationEnergySystemAsleep = false
             isApplicationEnergyDisplayAsleep = false
             updateApplicationEnergyDemand()
+            // The popover being visible proves the display is on, so a missed
+            // screensDidWake must not leave nearby BLE paused either; it also
+            // proves the system is awake, so clear both gates.
+            bluetoothDevices.setDisplaySleeping(false)
+            bluetoothDevices.setSystemSleeping(false)
             lowPowerMode.refresh()
             highPowerMode.refresh()
         }
@@ -1412,8 +1430,18 @@ final class SystemStatusStore: ObservableObject {
     }
 
     private func updateApplicationEnergyDemand() {
-        batteryDetails.energyApps.setSuspended(isApplicationEnergySystemAsleep || isApplicationEnergyDisplayAsleep)
+        updateSleepSuspension()
         batteryDetails.energyApps.setBackgroundMonitoringEnabled(hasStarted && !hasStopped && isApplicationEnergyEnabled)
+    }
+
+    /// Shared sleep gate for the samplers the store owns: while the system or
+    /// the display is asleep, no surface can show what they read. Registered
+    /// demands survive, so a resume restores exactly the surfaces that existed
+    /// before sleep. A missed wake is repaired by the popover-visible path.
+    private func updateSleepSuspension() {
+        let suspended = isApplicationEnergySystemAsleep || isApplicationEnergyDisplayAsleep
+        batteryDetails.energyApps.setSuspended(suspended)
+        powerSampling.setSuspended(suspended)
     }
 
     func bindMobileBatterySettings(_ settings: SettingsStore) {
@@ -1836,6 +1864,8 @@ final class SystemStatusStore: ObservableObject {
     }
 
     private func applyVolume(_ value: VolumeStatus) {
+        let current = value.outputDevices.first(where: \.isCurrent) ?? value.currentDevice
+        airPodsConversationCache.updateRoute(current.map { PanelAudioDeviceID(id: $0.id, uid: $0.uid) })
         // `liveVolume` drives the popover's volume section through
         // `objectWillChange`, and `publish` only dedupes the snapshot. Writing an
         // unchanged reading here re-rendered every volume observer on every

@@ -29,7 +29,7 @@ struct WeatherStatusView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: PanelSummaryActionMetrics.iconGap) {
+        HStack(alignment: .center, spacing: PanelSummaryActionMetrics.actionSpacing) {
             HStack(alignment: .center, spacing: 10) {
                 Image(systemName: "cloud.sun")
                     .font(.system(size: 17))
@@ -55,7 +55,7 @@ struct WeatherStatusView: View {
                     if state.isLoading {
                         ProgressView().controlSize(.small)
                     } else {
-                        PanelActionGlyph(systemName: "arrow.clockwise")
+                        PanelActionGlyph(systemName: "arrow.clockwise", size: PanelSummaryActionMetrics.actionSlot)
                     }
                 }
                 .foregroundStyle(.secondary)

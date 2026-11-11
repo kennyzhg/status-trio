@@ -56,7 +56,14 @@ final class SettingsStore: ObservableObject {
     /// Legacy boolean replaced by `batteryConnectedIndicator`; read once for
     /// migration and never written again (#195).
     static let showsPercentageWhenConnectedDefaultsKey = "showsPercentageWhenConnected"
+    // #315: per-power-state top markers.
+    static let batteryOnBatteryMarkerDefaultsKey = "batteryOnBatteryMarker"
+    static let batteryChargingMarkerDefaultsKey = "batteryChargingMarker"
+    static let batteryConnectedMarkerDefaultsKey = "batteryConnectedMarker"
+    static let batteryNoBatteryMarkerDefaultsKey = "batteryNoBatteryMarker"
     static let usesBatteryStatusColorsDefaultsKey = "usesBatteryStatusColors"
+    static let simulatesNoBatteryDefaultsKey = "simulatesNoBattery"
+    static let monochromeChargingRingDefaultsKey = "monochromeChargingRing"
     static let batteryStatusColorsChargingDefaultsKey = "batteryStatusColors.charging"
     static let batteryStatusColorsLowPowerDefaultsKey = "batteryStatusColors.lowPower"
     static let batteryStatusColorsHighPowerDefaultsKey = "batteryStatusColors.highPower"
@@ -72,6 +79,14 @@ final class SettingsStore: ObservableObject {
     /// Draws the private LAN address on the network row's second line. Off by
     /// default: the address is a diagnostic, not something every panel needs.
     static let showsLocalIPAddressDefaultsKey = "showsLocalIPAddress"
+    /// Whether the Spatial Audio group is shown on the volume panel's AirPods
+    /// output row. On by default; AirPods-only.
+    static let showsSpatialAudioControlsDefaultsKey = "showsSpatialAudioControls"
+    /// Whether the Conversation Awareness group is shown on the volume panel's
+    /// AirPods output row. On by default; AirPods-only.
+    static let showsConversationAwarenessControlsDefaultsKey = "showsConversationAwarenessControls"
+    /// Migration-only: the old single switch, now split into the two above.
+    static let showsInlineAirPodsControlsDefaultsKey = "showsInlineAirPodsControls"
     /// Migration-only: superseded by `connectionCenterSource`. Read once at
     /// launch, then removed so it can never override a later selection.
     static let showsBatteryPercentageInConnectionSlotDefaultsKey = "showsBatteryPercentageInConnectionSlot"
@@ -79,6 +94,10 @@ final class SettingsStore: ObservableObject {
     /// to `.network`, so a downgrade or corrupted default never changes the
     /// shipped icon behaviour.
     static let connectionCenterSourceDefaultsKey = "connectionCenterSource"
+    /// Raw value of `InputSourceMarkerStyle`. Missing or unknown values decode
+    /// to `.systemIcon`, so the Apple Pinyin 简/繁 marker stays opt-in and a
+    /// downgrade never changes the shipped icon behaviour.
+    static let inputSourceMarkerStyleDefaultsKey = "inputSourceMarkerStyle"
     /// Raw value of `PanelBackgroundStyle`. Missing or unknown values derive
     /// from the running OS, and a stored `.liquidGlass` on macOS < 26 resolves
     /// to `.classicMaterial` so a downgrade never selects an unavailable
@@ -93,6 +112,7 @@ final class SettingsStore: ObservableObject {
     static let prioritizesNetworkErrorsOverBluetoothAudioDefaultsKey = "prioritizesNetworkErrorsOverBluetoothAudio"
     static let showsBluetoothBatteryLevelsDefaultsKey = "showsBluetoothBatteryLevels"
     static let showsWiFiPowerControlDefaultsKey = "showsWiFiPowerControl"
+    static let confirmsWiFiPowerOffDefaultsKey = "confirmsWiFiPowerOff"
     static let showsBluetoothPowerControlDefaultsKey = "showsBluetoothPowerControl"
     static let controlsLowPowerModeDefaultsKey = "controlsLowPowerMode"
     static let autoEnablesLowPowerModeDefaultsKey = "autoEnablesLowPowerMode"
@@ -354,10 +374,49 @@ final class SettingsStore: ObservableObject {
         isCoalescingSliderWrite = false
     }
 
-    @Published var showsBatteryPercentage: Bool {
+    // #315: the top marker is stored per power state, replacing the old
+    // "show percentage" + "show charging indicator" + "connected indicator"
+    // trio. Each state can carry its own marker so the settings surface reads as
+    // three plain choices.
+    @Published var batteryOnBatteryMarker: BatteryTopMarker {
         didSet {
-            defaults.set(showsBatteryPercentage, forKey: Self.showsBatteryPercentageDefaultsKey)
+            defaults.set(
+                batteryOnBatteryMarker.rawValue,
+                forKey: Self.batteryOnBatteryMarkerDefaultsKey
+            )
         }
+    }
+    @Published var batteryChargingMarker: BatteryTopMarker {
+        didSet {
+            defaults.set(
+                batteryChargingMarker.rawValue,
+                forKey: Self.batteryChargingMarkerDefaultsKey
+            )
+        }
+    }
+    @Published var batteryConnectedMarker: BatteryTopMarker {
+        didSet {
+            defaults.set(
+                batteryConnectedMarker.rawValue,
+                forKey: Self.batteryConnectedMarkerDefaultsKey
+            )
+        }
+    }
+    /// A battery-less Mac's decorative top marker (plug / bolt / nothing).
+    @Published var batteryNoBatteryMarker: BatteryTopMarker {
+        didSet {
+            defaults.set(
+                batteryNoBatteryMarker.rawValue,
+                forKey: Self.batteryNoBatteryMarkerDefaultsKey
+            )
+        }
+    }
+
+    /// Legacy-shaped accessor retained for older call sites. In the new model it
+    /// simply reports whether the on-battery state shows the percentage.
+    var showsBatteryPercentage: Bool {
+        get { batteryOnBatteryMarker == .percentage }
+        set { batteryOnBatteryMarker = newValue ? .percentage : .hidden }
     }
 
     /// The single switch for the details page's power flow diagram. When on it
@@ -405,9 +464,13 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    @Published var showsChargingIndicator: Bool {
-        didSet {
-            defaults.set(showsChargingIndicator, forKey: Self.showsChargingIndicatorDefaultsKey)
+    /// Legacy-shaped accessor: reports whether the charging state shows the bolt.
+    var showsChargingIndicator: Bool {
+        get { batteryChargingMarker == .bolt }
+        set {
+            batteryChargingMarker = newValue
+                ? .bolt
+                : (batteryOnBatteryMarker == .percentage ? .percentage : .hidden)
         }
     }
 
@@ -480,12 +543,21 @@ final class SettingsStore: ObservableObject {
         testsChargingEffect = enabled
     }
 
-    @Published var batteryConnectedIndicator: BatteryConnectedIndicator {
-        didSet {
-            defaults.set(
-                batteryConnectedIndicator.rawValue,
-                forKey: Self.batteryConnectedIndicatorDefaultsKey
-            )
+    /// Legacy-shaped accessor for the connected-without-charging marker.
+    var batteryConnectedIndicator: BatteryConnectedIndicator {
+        get {
+            switch batteryConnectedMarker {
+            case .percentage: return .percentage
+            case .bolt: return .bolt
+            case .plug, .hidden: return .plug
+            }
+        }
+        set {
+            switch newValue {
+            case .plug: batteryConnectedMarker = .plug
+            case .bolt: batteryConnectedMarker = .bolt
+            case .percentage: batteryConnectedMarker = .percentage
+            }
         }
     }
 
@@ -503,6 +575,33 @@ final class SettingsStore: ObservableObject {
         didSet {
             defaults.set(usesBatteryStatusColors, forKey: Self.usesBatteryStatusColorsDefaultsKey)
         }
+    }
+
+    /// nil = automatic: black/white on a battery-less Mac, the connected colour
+    /// when a battery is present. An explicit value fixes the user's choice.
+    @Published var monochromeChargingRing: Bool? {
+        didSet {
+            if let value = monochromeChargingRing {
+                defaults.set(value, forKey: Self.monochromeChargingRingDefaultsKey)
+            } else {
+                defaults.removeObject(forKey: Self.monochromeChargingRingDefaultsKey)
+            }
+        }
+    }
+
+    /// Developer-only: preview the icon and settings as if the Mac had no battery.
+    /// Never takes effect in a packaged release; see `isNoBatterySimulationActive`.
+    @Published var simulatesNoBattery: Bool {
+        didSet {
+            defaults.set(simulatesNoBattery, forKey: Self.simulatesNoBatteryDefaultsKey)
+        }
+    }
+
+    /// Whether the no-battery preview is actually allowed to run. Developer-only:
+    /// a packaged release never simulates, regardless of any stale value in
+    /// `UserDefaults`, so the release rule lives in one place.
+    var isNoBatterySimulationActive: Bool {
+        isDevelopmentBuild && simulatesNoBattery
     }
 
     /// Per-role colour overrides for the charging, low-power and critical states.
@@ -571,6 +670,9 @@ final class SettingsStore: ObservableObject {
     /// ring close at the cap the user actually reaches.
     @Published var batteryFullThreshold: Double {
         didSet {
+            // Dragging the slider is the user taking manual control; a note
+            // about a failed “使用充电上限” press no longer applies.
+            batteryFullThresholdReadFailed = false
             let clamped = Self.clampedBatteryFullThreshold(batteryFullThreshold)
             guard clamped == batteryFullThreshold else {
                 batteryFullThreshold = clamped
@@ -619,6 +721,12 @@ final class SettingsStore: ObservableObject {
         return SystemChargeLimitReader.chargeLimit() != nil
     }
 
+    /// Whether the last “使用充电上限” press failed to read the private plist.
+    /// Drives the ring page's "check System Settings" note, which is shown only
+    /// after a failed attempt rather than proactively. Any manual threshold
+    /// change or successful read clears it again.
+    @Published private(set) var batteryFullThresholdReadFailed = false
+
     @Published var showsWiFiIconForEthernet: Bool {
         didSet {
             defaults.set(
@@ -664,11 +772,41 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    @Published var showsSpatialAudioControls: Bool {
+        didSet {
+            defaults.set(
+                showsSpatialAudioControls,
+                forKey: Self.showsSpatialAudioControlsDefaultsKey
+            )
+        }
+    }
+
+    @Published var showsConversationAwarenessControls: Bool {
+        didSet {
+            defaults.set(
+                showsConversationAwarenessControls,
+                forKey: Self.showsConversationAwarenessControlsDefaultsKey
+            )
+        }
+    }
+
     @Published var connectionCenterSource: ConnectionCenterSource {
         didSet {
             defaults.set(
                 connectionCenterSource.rawValue,
                 forKey: Self.connectionCenterSourceDefaultsKey
+            )
+        }
+    }
+
+    /// How Apple's two Pinyin input sources draw their middle marker: the
+    /// system image (default, pre-#297), 简/繁, or 中. See
+    /// `InputSourceMarkerStyle`.
+    @Published var inputSourceMarkerStyle: InputSourceMarkerStyle {
+        didSet {
+            defaults.set(
+                inputSourceMarkerStyle.rawValue,
+                forKey: Self.inputSourceMarkerStyleDefaultsKey
             )
         }
     }
@@ -712,6 +850,15 @@ final class SettingsStore: ObservableObject {
     /// default and only hides the panel affordance when explicitly turned off.
     @Published var showsWiFiPowerControl: Bool {
         didSet { defaults.set(showsWiFiPowerControl, forKey: Self.showsWiFiPowerControlDefaultsKey) }
+    }
+
+    /// Ask before turning the Wi-Fi radio off while a network is associated
+    /// (#305). On by default so upgrades keep the existing confirmation; the
+    /// user can opt out to switch off directly from the panel.
+    @Published var confirmsWiFiPowerOff: Bool {
+        didSet {
+            defaults.set(confirmsWiFiPowerOff, forKey: Self.confirmsWiFiPowerOffDefaultsKey)
+        }
     }
 
     /// The Bluetooth radio switch uses private IOBluetooth symbols, but needs
@@ -831,6 +978,17 @@ final class SettingsStore: ObservableObject {
                 forKey: Self.previewsBluetoothListeningModeDefaultsKey
             )
         }
+    }
+
+    /// Whether the synthetic listening-mode preview is actually allowed to run.
+    ///
+    /// Developer-only: a packaged release never previews, regardless of any stale
+    /// value in `UserDefaults`. Every consumer gates on this one property so the
+    /// release rule lives in a single place.
+    var isListeningModePreviewActive: Bool {
+        isDevelopmentBuild
+            && showsBluetoothListeningMode
+            && previewsBluetoothListeningMode
     }
 
     /// Optional override for the synthetic preview rows' device name. Empty means
@@ -1623,7 +1781,8 @@ final class SettingsStore: ObservableObject {
     }
 
     var isBatterySymbolSizeEnabled: Bool {
-        showsBatteryPercentage || showsChargingIndicator
+        [batteryOnBatteryMarker, batteryChargingMarker, batteryConnectedMarker, batteryNoBatteryMarker]
+            .contains { $0 != .hidden }
     }
 
     /// Re-reads the macOS charge limit into the full-ring level.
@@ -1642,8 +1801,12 @@ final class SettingsStore: ObservableObject {
         let url = url ?? chargeLimitURLForTesting
         let limit = url.map { SystemChargeLimitReader.chargeLimit(from: $0) }
             ?? SystemChargeLimitReader.chargeLimit()
-        guard let limit else { return }
+        guard let limit else {
+            batteryFullThresholdReadFailed = true
+            return
+        }
         batteryFullThreshold = Double(limit)
+        batteryFullThresholdReadFailed = false
     }
 
     /// Fills the restore-limit slider in from the system. Like
@@ -1662,18 +1825,20 @@ final class SettingsStore: ObservableObject {
 
     var batteryIconOptions: BatteryIconOptions {
         BatteryIconOptions(
-            showsPercentage: showsBatteryPercentage,
-            showsChargingIndicator: showsChargingIndicator,
             showsChargingEffect: showsChargingEffect,
             showsChargingBoltHeartbeat: showsChargingBoltHeartbeat,
             splitGapProgress: batterySplitGapProgress,
             usesStatusColors: usesBatteryStatusColors,
             criticalThreshold: Int(batteryCriticalThreshold.rounded()),
-            connectedIndicator: batteryConnectedIndicator,
             fullThreshold: Int(batteryFullThreshold.rounded()),
             textScale: batterySymbolScale * BatteryIconOptions.defaultTextScale,
             ringStrokeScale: ringStrokeStyle.scale,
             batteryStatusColors: batteryStatusColors,
+            onBatteryMarker: batteryOnBatteryMarker,
+            chargingMarker: batteryChargingMarker,
+            connectedMarker: batteryConnectedMarker,
+            noBatteryMarker: batteryNoBatteryMarker,
+            monochromeCharging: monochromeChargingRing,
             topSlotContent: batteryTopSlotContent
         )
     }
@@ -1720,6 +1885,11 @@ final class SettingsStore: ObservableObject {
 
     private let defaults: UserDefaults
     private let persistCoalescingInterval: Duration
+    /// Whether this bundle is a development build (carries a
+    /// `STDevelopmentCodename`). Injectable so tests can exercise both the
+    /// development and the packaged-release behaviour of developer-only features
+    /// such as the listening-mode preview.
+    let isDevelopmentBuild: Bool
     private var pendingPersistValues: [String: Any] = [:]
     private var pendingPersistTask: Task<Void, Never>?
     private var isCoalescingSliderWrite = false
@@ -1800,10 +1970,12 @@ final class SettingsStore: ObservableObject {
     init(
         defaults: UserDefaults = .standard,
         systemChargeLimit: () -> Int? = { SystemChargeLimitReader.chargeLimit() },
-        persistCoalescingInterval: Duration = .milliseconds(250)
+        persistCoalescingInterval: Duration = .milliseconds(250),
+        isDevelopmentBuild: Bool = AppMetadata.isDevelopmentBuild
     ) {
         self.defaults = defaults
         self.persistCoalescingInterval = persistCoalescingInterval
+        self.isDevelopmentBuild = isDevelopmentBuild
         self.statusPanelShortcut = defaults
             .data(forKey: Self.statusPanelShortcutDefaultsKey)
             .flatMap { try? JSONDecoder().decode(StatusPanelShortcut.self, from: $0) }
@@ -1942,7 +2114,8 @@ final class SettingsStore: ObservableObject {
             .flatMap(MenuBarRightClickAction.init(rawValue:))
             ?? .contextMenu
         self.iconSize = Self.clampedIconSize(storedIconSize ?? Self.defaultIconSize)
-        self.showsBatteryPercentage = defaults.object(forKey: Self.showsBatteryPercentageDefaultsKey) as? Bool ?? true
+        // #315 migration inputs: the old two booleans plus the connected choice.
+        let legacyShowsPercentage = defaults.object(forKey: Self.showsBatteryPercentageDefaultsKey) as? Bool ?? true
         self.showsBatteryPowerFlow = defaults.object(forKey: Self.showsBatteryPowerFlowDefaultsKey) as? Bool ?? true
         self.showsBatteryPowerInfoBar = defaults.object(forKey: Self.showsBatteryPowerInfoBarDefaultsKey) as? Bool ?? false
         self.showsHighEnergyApps = defaults.object(forKey: Self.showsHighEnergyAppsDefaultsKey) as? Bool ?? false
@@ -1953,7 +2126,7 @@ final class SettingsStore: ObservableObject {
         self.showsChargeToFullNowButton = defaults.object(
             forKey: Self.showsChargeToFullNowButtonDefaultsKey
         ) as? Bool ?? true
-        self.showsChargingIndicator = defaults.object(forKey: Self.showsChargingIndicatorDefaultsKey) as? Bool ?? true
+        let legacyShowsCharging = defaults.object(forKey: Self.showsChargingIndicatorDefaultsKey) as? Bool ?? true
         let legacyChargingEffect = defaults.object(
             forKey: Self.showsChargingEffectDefaultsKey
         ) as? Bool
@@ -1987,29 +2160,87 @@ final class SettingsStore: ObservableObject {
         self.batterySplitGapProgress = defaults.object(
             forKey: Self.batterySplitGapProgressDefaultsKey
         ) as? Bool ?? false
-        if let storedConnectedIndicator = defaults
-            .string(forKey: Self.batteryConnectedIndicatorDefaultsKey)
-            .flatMap(BatteryConnectedIndicator.init(rawValue:)) {
-            self.batteryConnectedIndicator = storedConnectedIndicator
-        } else {
+        // #315: resolve the three per-state markers. Read the new keys first; if
+        // they are absent (an upgrade from the old build) derive them from the
+        // legacy booleans + connected choice so the current look is preserved,
+        // then persist them so this migration runs once.
+        func legacyMarker(
+            _ connected: BatteryConnectedIndicator,
+            showsPercentage: Bool
+        ) -> BatteryTopMarker {
+            switch connected {
+            case .plug: return .plug
+            case .bolt: return .bolt
+            case .percentage: return showsPercentage ? .percentage : .plug
+            }
+        }
+        let storedConnectedIndicator: BatteryConnectedIndicator = {
+            if let stored = defaults
+                .string(forKey: Self.batteryConnectedIndicatorDefaultsKey)
+                .flatMap(BatteryConnectedIndicator.init(rawValue:)) {
+                return stored
+            }
             // Migrate the old boolean once: false was the plug, true meant the
-            // percentage. Persist the result so the legacy key is not read
-            // again on later launches (#195).
+            // percentage. Persist the result so the legacy key is not read again
+            // on later launches (#195).
             let showedPercentage = defaults.object(
                 forKey: Self.showsPercentageWhenConnectedDefaultsKey
             ) as? Bool ?? false
             let migrated: BatteryConnectedIndicator = showedPercentage ? .percentage : .plug
-            self.batteryConnectedIndicator = migrated
             defaults.set(
                 migrated.rawValue,
                 forKey: Self.batteryConnectedIndicatorDefaultsKey
             )
+            return migrated
+        }()
+        let storedOnBatteryMarker = defaults
+            .string(forKey: Self.batteryOnBatteryMarkerDefaultsKey)
+            .flatMap(BatteryTopMarker.init(rawValue:))
+        let storedChargingMarker = defaults
+            .string(forKey: Self.batteryChargingMarkerDefaultsKey)
+            .flatMap(BatteryTopMarker.init(rawValue:))
+        let storedConnectedMarker = defaults
+            .string(forKey: Self.batteryConnectedMarkerDefaultsKey)
+            .flatMap(BatteryTopMarker.init(rawValue:))
+        let storedNoBatteryMarker = defaults
+            .string(forKey: Self.batteryNoBatteryMarkerDefaultsKey)
+            .flatMap(BatteryTopMarker.init(rawValue:))
+        let onBatteryMarker = storedOnBatteryMarker
+            ?? (legacyShowsPercentage ? .percentage : .hidden)
+        let chargingMarker = storedChargingMarker
+            ?? (legacyShowsCharging ? .bolt : (legacyShowsPercentage ? .percentage : .hidden))
+        let connectedMarker = storedConnectedMarker
+            ?? (
+                legacyShowsCharging
+                    ? legacyMarker(storedConnectedIndicator, showsPercentage: legacyShowsPercentage)
+                    : (legacyShowsPercentage ? .percentage : .hidden)
+            )
+        let noBatteryMarker = storedNoBatteryMarker
+            ?? (legacyShowsCharging ? (storedConnectedIndicator == .bolt ? .bolt : .plug) : .hidden)
+        self.batteryOnBatteryMarker = onBatteryMarker
+        self.batteryChargingMarker = chargingMarker
+        self.batteryConnectedMarker = connectedMarker
+        self.batteryNoBatteryMarker = noBatteryMarker
+        if storedOnBatteryMarker == nil {
+            defaults.set(onBatteryMarker.rawValue, forKey: Self.batteryOnBatteryMarkerDefaultsKey)
+        }
+        if storedChargingMarker == nil {
+            defaults.set(chargingMarker.rawValue, forKey: Self.batteryChargingMarkerDefaultsKey)
+        }
+        if storedConnectedMarker == nil {
+            defaults.set(connectedMarker.rawValue, forKey: Self.batteryConnectedMarkerDefaultsKey)
+        }
+        if storedNoBatteryMarker == nil {
+            defaults.set(noBatteryMarker.rawValue, forKey: Self.batteryNoBatteryMarkerDefaultsKey)
         }
         self.batteryTopSlotContent = defaults
             .string(forKey: Self.batteryTopSlotContentDefaultsKey)
             .flatMap(BatteryTopSlotContent.init(rawValue:))
             ?? .automatic
         self.usesBatteryStatusColors = defaults.object(forKey: Self.usesBatteryStatusColorsDefaultsKey) as? Bool ?? true
+        self.monochromeChargingRing =
+            defaults.object(forKey: Self.monochromeChargingRingDefaultsKey) as? Bool
+        self.simulatesNoBattery = defaults.object(forKey: Self.simulatesNoBatteryDefaultsKey) as? Bool ?? false
         self.batteryStatusColors = BatteryStatusColors(
             charging: BatteryStatusColorSelection(
                 storageValue: defaults.string(forKey: Self.batteryStatusColorsChargingDefaultsKey) ?? "system"
@@ -2066,6 +2297,15 @@ final class SettingsStore: ObservableObject {
         self.showsLocalIPAddress = defaults.object(
             forKey: Self.showsLocalIPAddressDefaultsKey
         ) as? Bool ?? false
+        let legacyInlineAirPodsControls = defaults.object(
+            forKey: Self.showsInlineAirPodsControlsDefaultsKey
+        ) as? Bool
+        self.showsSpatialAudioControls = defaults.object(
+            forKey: Self.showsSpatialAudioControlsDefaultsKey
+        ) as? Bool ?? legacyInlineAirPodsControls ?? true
+        self.showsConversationAwarenessControls = defaults.object(
+            forKey: Self.showsConversationAwarenessControlsDefaultsKey
+        ) as? Bool ?? legacyInlineAirPodsControls ?? true
         // Resolve the effective legacy choice once, then remove competing keys.
         // Persist the new choice even at default so old flags cannot revive.
         let legacyPercentageInSlot = defaults.bool(forKey: Self.showsBatteryPercentageInConnectionSlotDefaultsKey)
@@ -2082,6 +2322,12 @@ final class SettingsStore: ObservableObject {
             source = .network
         }
         self.connectionCenterSource = source
+        let storedMarkerStyle = defaults.string(
+            forKey: Self.inputSourceMarkerStyleDefaultsKey
+        )
+        self.inputSourceMarkerStyle = storedMarkerStyle
+            .flatMap(InputSourceMarkerStyle.init(rawValue:))
+            ?? .systemIcon
         let legacyPriorityKey: String? = switch source {
         case .inputSource: Self.prioritizesNetworkErrorsOverInputSourceDefaultsKey
         case .bluetoothDevice: Self.prioritizesNetworkErrorsOverBluetoothAudioDefaultsKey
@@ -2118,6 +2364,7 @@ final class SettingsStore: ObservableObject {
             forKey: Self.showsBluetoothBatteryLevelsDefaultsKey
         ) as? Bool ?? true
         self.showsWiFiPowerControl = defaults.object(forKey: Self.showsWiFiPowerControlDefaultsKey) as? Bool ?? true
+        self.confirmsWiFiPowerOff = defaults.object(forKey: Self.confirmsWiFiPowerOffDefaultsKey) as? Bool ?? true
         self.showsBluetoothPowerControl = defaults.object(
             forKey: Self.showsBluetoothPowerControlDefaultsKey
         ) as? Bool ?? true
@@ -2164,6 +2411,29 @@ final class SettingsStore: ObservableObject {
         self.bluetoothListeningModePreviewLanguage = defaults.string(
             forKey: Self.bluetoothListeningModePreviewLanguageDefaultsKey
         ) ?? ""
+        // The listening-mode preview is developer-only. A packaged release must
+        // never show it, so scrub any preview state a user may have set while a
+        // development build offered the toggle — removing the demo/synthetic
+        // rows and the fake device name/count/language from storage. Property
+        // observers do not fire during initialization, so reset the in-memory
+        // values here and delete the persisted keys afterwards.
+        if !isDevelopmentBuild {
+            self.simulatesNoBattery = false
+            defaults.removeObject(forKey: Self.simulatesNoBatteryDefaultsKey)
+            self.previewsBluetoothListeningMode = false
+            self.bluetoothListeningModePreviewDeviceName = ""
+            self.bluetoothListeningModePreviewDeviceCount =
+                Self.defaultBluetoothListeningModePreviewDeviceCount
+            self.bluetoothListeningModePreviewLanguage = ""
+            for key in [
+                Self.previewsBluetoothListeningModeDefaultsKey,
+                Self.bluetoothListeningModePreviewDeviceNameDefaultsKey,
+                Self.bluetoothListeningModePreviewDeviceCountDefaultsKey,
+                Self.bluetoothListeningModePreviewLanguageDefaultsKey,
+            ] {
+                defaults.removeObject(forKey: key)
+            }
+        }
         self.wifiSymbolScale = Self.clampedWifiSymbolScale(
             storedWifiSymbolScale
                 ?? (defaults.object(forKey: Self.bluetoothSymbolScaleDefaultsKey) as? NSNumber)?.doubleValue

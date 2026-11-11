@@ -15,6 +15,10 @@ private struct StatusBarAccessibilityKey: Equatable {
 @MainActor
 final class StatusBarController: NSObject {
     static let popoverToggleLockoutInterval: TimeInterval = 0.25
+    /// Bounds the "this close came from the current click's mouse-down" record
+    /// so a later opening click is not suppressed. Kept short: a same-click
+    /// mouse-up follows its mouse-down within the physical press.
+    static let popoverReopenSuppressionInterval: TimeInterval = 0.35
     static let popoverContentReleaseDelay: TimeInterval = 5
 
     /// Draws the monochrome template base the menu bar hands to the system.
@@ -84,6 +88,9 @@ final class StatusBarController: NSObject {
     private let chargingFrameCache = StatusBarChargingFrameCache()
     private let animationLayerPresenter = StatusBarAnimationLayerPresenter()
     private let templateImagePresenter = StatusBarTemplateImagePresenter()
+    #if DEBUG
+    private let alignmentDiagnostics = StatusBarAlignmentDiagnostics()
+    #endif
     private let renderCoalescer = IconRenderCoalescer()
     /// The template base and button footprint, kept so a custom-raster fallback
     /// can restore the independent template presentation.
@@ -154,6 +161,9 @@ final class StatusBarController: NSObject {
     private var popoverAnchorWindow: NSWindow?
     private var popoverToggleGate = PopoverToggleGate(
         lockout: StatusBarController.popoverToggleLockoutInterval
+    )
+    private var reopenSuppression = PopoverReopenSuppression(
+        window: StatusBarController.popoverReopenSuppressionInterval
     )
     private var popoverContentReleaseTask: Task<Void, Never>?
     private var popoverContentGeneration: UInt64 = 0
@@ -264,6 +274,11 @@ final class StatusBarController: NSObject {
 
         statusItem.isVisible = isVisible
         configureButton()
+        #if DEBUG
+        alignmentDiagnostics?.didChange = { [weak self] in
+            self?.renderLatestScene()
+        }
+        #endif
         configurePopover()
         observeApplicationFocusChanges()
         observeAppWindowFrontmostChanges()
@@ -521,6 +536,21 @@ final class StatusBarController: NSObject {
         popover.onClose = { [weak self] in
             self?.handlePanelDidClose()
         }
+        // Issue #224 follow-up: while the app is active (regular mode), the
+        // panel's focus-loss observers would close it on the status-item
+        // mouse-down and the item's mouse-up toggle would reopen it. Defer that
+        // close when the pointer is pressing the item so the toggle owns the
+        // click; a genuine focus loss (no button pressed) still dismisses.
+        popover.shouldDeferDismissalOnFocusLoss = { [weak self] in
+            guard let self else { return false }
+            let policy = PopoverDismissalPolicy(
+                statusItemFrame: self.statusItemButtonScreenFrame()
+            )
+            return !policy.shouldDismissOnFocusLoss(
+                at: NSEvent.mouseLocation,
+                isMouseButtonDown: NSEvent.pressedMouseButtons != 0
+            )
+        }
     }
 
     private func installPopoverContentIfNeeded() {
@@ -560,6 +590,13 @@ final class StatusBarController: NSObject {
     }
 
     func togglePopover() {
+        // Issue #224 follow-up 2: if this same click's mouse-down already closed
+        // the panel (the outside-click monitor, or a focus-loss close while the
+        // button was held), the click intended to close — never reopen on the
+        // following mouse-up.
+        if !popover.isShown, reopenSuppression.shouldSuppressReopen(at: Date()) {
+            return
+        }
         guard popoverToggleGate.shouldAccept(at: Date()) else { return }
         guard let button = statusItem.button else { return }
         if popover.isShown {
@@ -711,6 +748,8 @@ final class StatusBarController: NSObject {
         dockInset: NSEdgeInsets = DockReveal.noInset
     ) {
         cancelPopoverContentRelease()
+        // A fresh presentation is not the tail of a mouse-down dismissal.
+        reopenSuppression.reset()
         store.setPopoverVisible(true)
         // A retained route is lightweight. Re-enter its detail source before
         // installing or laying out content so the first frame uses fresh data.
@@ -1023,6 +1062,11 @@ final class StatusBarController: NSObject {
                 // outside click. Dismissing here would close on mouse-down and
                 // the item's mouse-up toggle would reopen it (issue #224).
                 guard policy.shouldDismiss(at: clickLocation) else { return }
+                // Even when the geometry check cannot recognise the item (some
+                // multi-display / OS setups), remember that this mouse-down
+                // closed the panel so the same click's mouse-up will not reopen
+                // it (issue #224 follow-up 2).
+                self.reopenSuppression.recordClose(at: Date(), mouseButtonDown: true)
                 self.popover.performClose(nil)
             }
         }
@@ -1078,6 +1122,13 @@ final class StatusBarController: NSObject {
         //    before any scroll view or the panel-wide fallback (issue #256).
         if let target = popoverScrollTargets.target(at: point, in: window) {
             return consumeScroll(target: target, event: event)
+        }
+
+        // 1b. A control that handles the wheel itself (e.g. the compact Adaptive
+        //     strength bar) keeps the event, so the panel-wide volume fallback
+        //     never turns its scroll into a volume change.
+        if let hit = window?.contentView?.hitTest(point), hit.handlesScrollWheelItself {
+            return false
         }
 
         // 2. A scrollable scroll view under the pointer owns the wheel.
@@ -1183,7 +1234,8 @@ final class StatusBarController: NSObject {
             deltaY: Double(event.scrollingDeltaY),
             isPrecise: event.hasPreciseScrollingDeltas,
             isDirectionInverted: event.isDirectionInvertedFromDevice,
-            usesNaturalScrolling: settings.popupVolumeNaturalScrolling
+            usesNaturalScrolling: settings.popupVolumeNaturalScrolling,
+            wheelStep: PopupVolumeScrollAdjustment.volumeWheelStep
         )
         guard let delta else { return true }
 
@@ -1191,6 +1243,9 @@ final class StatusBarController: NSObject {
             delta: delta,
             to: currentScalar
         )
+        // Publish this wheel step on the current runloop instead of waiting for
+        // the drag coalescer, so the row tracks the wheel without a visible lag.
+        panelViewModel.beginWheelVolumeAdjustment()
         if volumeScrollSession.shouldUnmute(
             in: volumeState,
             isIncreasing: delta > 0
@@ -1198,6 +1253,7 @@ final class StatusBarController: NSObject {
             store.toggleMute()
         }
         store.setVolume(nextScalar)
+        panelViewModel.endWheelVolumeAdjustment()
         return true
     }
 
@@ -1223,6 +1279,14 @@ final class StatusBarController: NSObject {
     }
 
     private func handlePanelDidClose() {
+        // A close while a mouse button is held is a mouse-down dismissal (the
+        // outside-click monitor or a focus-loss close during the press). The
+        // same click's mouse-up must not reopen the panel (issue #224 follow-up
+        // 2). The item's own toggle closes on mouse-up, so it is not recorded.
+        reopenSuppression.recordClose(
+            at: Date(),
+            mouseButtonDown: NSEvent.pressedMouseButtons != 0
+        )
         let popoverWindow = popover.contentViewController?.view.window
         dockActivationLogger.notice(
             """
@@ -1363,11 +1427,20 @@ final class StatusBarController: NSObject {
     private func presentMenuBar(phase: ChargingEffectPhase?) {
         guard isStatusItemVisible, let button = statusItem.button else { return }
 
-        let scene = (latestIconOutput.menuBarTestScene ?? latestIconOutput.scene)
+        var scene = (latestIconOutput.menuBarTestScene ?? latestIconOutput.scene)
             .withChargingEffectEnabled(isMenuBarChargingEffectEnabled)
-        let iconSize = latestIconOutput.menuBarSize
+        var iconSize = latestIconOutput.menuBarSize
+        var effectivePhase = isMenuBarChargingEffectEnabled ? phase : nil
+        var forcesSplitPresentation = false
+        #if DEBUG
+        if let request = alignmentDiagnostics?.request {
+            scene = request.scene
+            iconSize = request.size
+            effectivePhase = request.animated ? ChargingEffectPhase(step: request.phaseStep, stepsPerCycle: 40, kind: .steady) : nil
+            forcesSplitPresentation = true
+        }
+        #endif
         guard iconSize.isFinite, iconSize > 0 else { return }
-        let effectivePhase = isMenuBarChargingEffectEnabled ? phase : nil
 
         let scaleResolution = Self.resolveBackingScale(
             windowScale: button.window?.backingScaleFactor,
@@ -1375,6 +1448,19 @@ final class StatusBarController: NSObject {
         )
         let backingScale = scaleResolution.scale
         let appearance = appearanceProvider?() ?? button.effectiveAppearance
+        #if DEBUG
+        if let diagnostics = alignmentDiagnostics {
+            // One deferred observation per explicit fixture request/presentation;
+            // wait for AppKit's image-driven button resize, without polling.
+            DispatchQueue.main.async { [weak self, weak button] in
+                guard let self, let button else { return }
+                diagnostics.write(button: button, scale: backingScale, size: iconSize,
+                                  overlayFrame: self.animationLayerPresenter.frameForDiagnostics,
+                                  statusItemLength: self.statusItem.length,
+                                  overlayContentsScale: self.animationLayerPresenter.contentsScaleForDiagnostics)
+            }
+        }
+        #endif
         let staticKey = StatusBarRenderKey(
             scene: scene,
             iconSize: iconSize,
@@ -1395,7 +1481,7 @@ final class StatusBarController: NSObject {
                 return
             }
             let buttonImage: NSImage
-            if scene.chromaticRegions.isEmpty {
+            if scene.chromaticRegions.isEmpty && !forcesSplitPresentation {
                 buttonImage = base
             } else {
                 guard let placeholder = StatusIconRenderer.transparentMenuBarImage(
@@ -1604,7 +1690,8 @@ final class StatusBarController: NSObject {
             size: context.iconSize,
             scale: context.backingScale,
             appearance: context.appearance,
-            phase: phase
+            phase: phase,
+            supersample: 2
         ) else {
             return
         }

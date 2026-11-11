@@ -38,6 +38,7 @@ private struct PanelSettingsFingerprint: Equatable {
     let outputDeviceListPreferences: AudioOutputListPreferences
     let inputDeviceListPreferences: AudioInputListPreferences
     let externalVolumeConfigurations: [String: ExternalVolumeConfiguration]
+    let inputSourceMarkerStyle: InputSourceMarkerStyle
 
     init(settings: SettingsStore) {
         sections = settings.visiblePopupSections
@@ -60,6 +61,7 @@ private struct PanelSettingsFingerprint: Equatable {
         outputDeviceListPreferences = settings.outputDeviceListPreferences
         inputDeviceListPreferences = settings.inputDeviceListPreferences
         externalVolumeConfigurations = settings.externalVolumeConfigurations
+        inputSourceMarkerStyle = settings.inputSourceMarkerStyle
     }
 }
 
@@ -174,6 +176,10 @@ final class StatusPanelViewModel: ObservableObject {
     /// The newest level-only reading waiting for the next coalesced publish.
     private var pendingLevelVolumeStatus: VolumeStatus?
     private var levelVolumePublishTask: Task<Void, Never>?
+    /// True while the wheel is driving the volume. Wheel events arrive slowly
+    /// enough that the drag-tuning coalescer would only make the row lag behind
+    /// the pointer, so those level changes publish on the same runloop.
+    private var isWheelAdjustingVolume = false
     /// A drag emits levels far faster than the row can usefully draw them.
     /// Coalescing to 10 Hz stops the panel hosting view from laying out the
     /// whole tree on every tick (#263); the slider's local draft keeps the
@@ -244,6 +250,10 @@ final class StatusPanelViewModel: ObservableObject {
                     settings: settings
                 ),
                 deviceList: settings.outputDeviceListPreferences,
+                showsAirPodsSystemControls: settings.showsSpatialAudioControls
+                    || settings.showsConversationAwarenessControls,
+                showsSpatialAudioControls: settings.showsSpatialAudioControls,
+                showsConversationAwarenessControls: settings.showsConversationAwarenessControls,
                 localization: localization
             )
         )
@@ -255,7 +265,8 @@ final class StatusPanelViewModel: ObservableObject {
         inputSource = InputSourcePanelMapper.map(
             state: resolvedInputSourceController.state,
             failure: resolvedInputSourceController.selectionFailure,
-            localization: localization
+            localization: localization,
+            markerStyle: settings.inputSourceMarkerStyle
         )
         brightness = BrightnessPanelMapper.map(
             store.popupSnapshot.brightness,
@@ -589,6 +600,10 @@ final class StatusPanelViewModel: ObservableObject {
             previewLanguageCode: previewConfiguration.languageCode,
             previewLocalization: PreviewLocalization.forCode(previewConfiguration.languageCode),
             deviceListPlaceholder: deviceListPlaceholder,
+            showsAirPodsSystemControls: settings.showsSpatialAudioControls
+                || settings.showsConversationAwarenessControls,
+            showsSpatialAudioControls: settings.showsSpatialAudioControls,
+            showsConversationAwarenessControls: settings.showsConversationAwarenessControls,
             localization: localization
         )
     }
@@ -610,7 +625,7 @@ final class StatusPanelViewModel: ObservableObject {
 
     private var currentPreviewConfiguration: ListeningModePreview.Configuration {
         ListeningModePreview.Configuration(
-            isEnabled: settings.showsBluetoothListeningMode && settings.previewsBluetoothListeningMode,
+            isEnabled: settings.isListeningModePreviewActive,
             deviceName: settings.bluetoothListeningModePreviewDeviceName,
             deviceCount: settings.bluetoothListeningModePreviewDeviceCount,
             languageCode: settings.bluetoothListeningModePreviewLanguage
@@ -619,7 +634,7 @@ final class StatusPanelViewModel: ObservableObject {
 
     private func makeListeningModeTaskID(outputDevices: [AudioOutputDevice]) -> String {
         let configuration = ListeningModePreview.Configuration(
-            isEnabled: settings.showsBluetoothListeningMode && settings.previewsBluetoothListeningMode,
+            isEnabled: settings.isListeningModePreviewActive,
             deviceName: settings.bluetoothListeningModePreviewDeviceName,
             deviceCount: settings.bluetoothListeningModePreviewDeviceCount,
             languageCode: settings.bluetoothListeningModePreviewLanguage
@@ -631,7 +646,7 @@ final class StatusPanelViewModel: ObservableObject {
             return "off::\(store.popoverOpenGeneration)"
         }
         let connected = BluetoothDevicePresentation.grouped(store.bluetoothDevices.devices).connected
-            .filter { $0.isAirPods || $0.isHuaweiAudio }
+            .filter { $0.isAirPods || $0.isHuaweiAudio || $0.isRedmiAudio }
             .map { BluetoothBatteryReader.normalizedAddress($0.id) }
             .joined(separator: ",")
         let preview = configuration.isEnabled ? "|preview" : ""
@@ -1243,12 +1258,24 @@ final class StatusPanelViewModel: ObservableObject {
     private func receiveLiveVolume(_ status: VolumeStatus) {
         let previous = lastLiveVolumeStatus
         lastLiveVolumeStatus = status
-        if let previous, status.changesOnlyLevel(comparedTo: previous) {
+        if let previous,
+           status.changesOnlyLevel(comparedTo: previous),
+           !isWheelAdjustingVolume {
             pendingLevelVolumeStatus = status
             scheduleLevelVolumePublish()
         } else {
             publishVolume(mapVolume(status))
         }
+    }
+
+    /// Marks a wheel-driven volume change so the level publish skips the drag
+    /// coalescer for the duration of one event.
+    func beginWheelVolumeAdjustment() {
+        isWheelAdjustingVolume = true
+    }
+
+    func endWheelVolumeAdjustment() {
+        isWheelAdjustingVolume = false
     }
 
     private func scheduleLevelVolumePublish() {
@@ -1326,7 +1353,12 @@ final class StatusPanelViewModel: ObservableObject {
         state: InputSourceState,
         failure: InputSourceController.SelectionFailure?
     ) {
-        let next = InputSourcePanelMapper.map(state: state, failure: failure, localization: localization)
+        let next = InputSourcePanelMapper.map(
+            state: state,
+            failure: failure,
+            localization: localization,
+            markerStyle: settings.inputSourceMarkerStyle
+        )
         guard inputSource != next else { return }
         inputSource = next
     }

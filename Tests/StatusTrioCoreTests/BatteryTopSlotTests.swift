@@ -53,7 +53,7 @@ final class BatteryTopSlotTests: XCTestCase {
 
     func testAutomaticFollowsRuntimeBatteryPresence() {
         XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(for: laptop), .battery)
-        XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(for: desktop), .hidden)
+        XCTAssertEqual(BatteryTopSlotContent.automatic.resolved(for: desktop), .battery)
         for explicit in [BatteryTopSlotContent.battery, .hidden, .power] {
             for battery in [laptop, chargingLaptop, desktop] {
                 XCTAssertEqual(explicit.resolved(for: battery), explicit)
@@ -84,8 +84,8 @@ final class BatteryTopSlotTests: XCTestCase {
         let sample = SystemPowerSample(watts: 31.2, readAt: now)
         XCTAssertEqual(text(ring(chargingLaptop, topSlot: .powerWhenPluggedIn, power: sample)), "31")
         XCTAssertEqual(text(ring(desktop, topSlot: .powerWhenPluggedIn, power: sample)), "31")
-        // A desktop shows its watts on the empty track (upstream 1.9.4).
-        XCTAssertEqual(ring(desktop, topSlot: .powerWhenPluggedIn, power: sample)?.segments.first?.progress, 0)
+        // A desktop shows its watts on the full decorative ring (upstream 1.9.5).
+        XCTAssertEqual(ring(desktop, topSlot: .powerWhenPluggedIn, power: sample)?.segments.first?.progress, 1)
         // On battery it is the battery gap, even with a sample lying around.
         XCTAssertEqual(ring(laptop, topSlot: .powerWhenPluggedIn, power: sample),
                        ring(laptop, topSlot: .battery))
@@ -104,20 +104,23 @@ final class BatteryTopSlotTests: XCTestCase {
         XCTAssertEqual(ring, self.ring(laptop, topSlot: .battery))
     }
 
-    func testAutomaticHidesTheSlotOnAMacWithoutABattery() {
+    func testAutomaticFollowsTheNoBatteryMarkerOnADesktop() {
+        // Upstream 1.9.5 (#309/#315): a battery-less Mac draws a full decorative
+        // ring and its gap carries the chosen no-battery marker (plug by default).
         let ring = ring(desktop, topSlot: .automatic)
-        XCTAssertEqual(ring?.gap, .closed)
-        XCTAssertNil(ring?.accessory)
-        // Upstream 1.9.4: the ring stays as an empty track, not a full circle.
-        XCTAssertEqual(ring?.segments.first?.progress, 0)
+        XCTAssertEqual(ring?.gap, .indicator)
+        XCTAssertEqual(ring?.segments.first?.progress, 1)
+        guard case .symbol(let symbol) = ring?.accessory else {
+            return XCTFail("expected the decorative no-battery marker")
+        }
+        XCTAssertEqual(symbol.source, .primitive(.plug))
     }
 
     func testExplicitBatteryOnADesktopNoLongerInventsOneHundred() {
-        // Upstream 1.9.4 dropped the placeholder 100 for a Mac with no battery.
+        // Never the placeholder 100: Battery behaves like Automatic on a desktop.
         let ring = ring(desktop, topSlot: .battery)
-        XCTAssertEqual(ring?.gap, .closed)
-        XCTAssertNil(ring?.accessory)
-        XCTAssertEqual(ring?.segments.first?.progress, 0)
+        XCTAssertNil(text(ring))
+        XCTAssertEqual(ring, self.ring(desktop, topSlot: .automatic))
     }
 
     func testHiddenClosesTheGapAndKeepsTheLaptopLevel() {

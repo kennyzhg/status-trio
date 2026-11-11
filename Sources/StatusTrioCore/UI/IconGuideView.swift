@@ -680,6 +680,7 @@ struct IconGuideView: View {
             textScale: configured.textScale,
             ringStrokeScale: configured.ringStrokeScale,
             batteryStatusColors: configured.batteryStatusColors,
+            monochromeCharging: configured.monochromeCharging,
             // The guide explains the battery gap, so it always draws it (#274).
             topSlotContent: .battery
         )

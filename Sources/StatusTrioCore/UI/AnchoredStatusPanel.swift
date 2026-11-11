@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import QuartzCore
 import SwiftUI
 
 /// The status panel window.
@@ -34,6 +35,14 @@ final class AnchoredStatusPanel: NSPanel {
     /// while another application remains active. The controller owns this
     /// value and leaves it false for normal interaction.
     var disablesDismissOnResignForTesting: Bool = false
+
+    /// Consulted by the focus-loss observers (`didResignActive` and another app
+    /// activating). Returning `true` defers the close for this notification so
+    /// a click on the status item is left to the item's own toggle instead of
+    /// closing on mouse-down and reopening on mouse-up (issue #224 follow-up).
+    /// The controller wires it to the current pointer and mouse-button state;
+    /// `nil` keeps the native "always dismiss on focus loss" behaviour.
+    var shouldDeferDismissalOnFocusLoss: (() -> Bool)?
 
     /// Set only for the Debug background-testing route. A visible nonactivating
     /// panel can still become key when AppKit orders it in; refusing key status
@@ -79,6 +88,16 @@ final class AnchoredStatusPanel: NSPanel {
         frameWriteCount = 0
     }
 
+    /// The window follows measured layout; it has no separate animation or pin.
+    var resizeDiagnostics: StatusPanelResizeDiagnostics {
+        StatusPanelResizeDiagnostics(
+            windowHeight: frame.height,
+            anchoredEdgeY: lockedResizeEdge == .maxY ? frame.minY : frame.maxY,
+            targetHeight: layoutMetrics.contentHeight ?? frame.height,
+            presentedHeight: frame.height,
+            frameWriteCount: frameWriteCount
+        )
+    }
 #endif
     /// Coalesces the three things that can change the window's frame: a content
     /// measurement, the window's own resize, and a screen / Dock / Space change
@@ -215,6 +234,7 @@ final class AnchoredStatusPanel: NSPanel {
         // while invisible and then fading the panel in hides the jump that read
         // as a flash on open.
         alphaValue = 0
+        layoutMetrics.setPresented(true)
         if avoidsOrderFrontRegardlessForTesting {
             orderFront(nil)
         } else {
@@ -258,6 +278,7 @@ final class AnchoredStatusPanel: NSPanel {
         // A hidden window has nothing to tear down; callers rely on `isShown`
         // before they act on a close.
         guard isVisible else { return }
+        layoutMetrics.setPresented(false)
         pendingReveal = false
         lockedResizeAnchor = nil
         lockedResizeFrame = nil
@@ -538,8 +559,7 @@ final class AnchoredStatusPanel: NSPanel {
             center.publisher(for: NSApplication.didResignActiveNotification)
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    guard let self, self.isVisible else { return }
-                    self.performClose(nil)
+                    self?.dismissForFocusLossIfNeeded()
                 }
                 .store(in: &showCancellables)
             // A nonactivating panel can own keyboard focus while another app stays
@@ -549,15 +569,24 @@ final class AnchoredStatusPanel: NSPanel {
                 .publisher(for: NSWorkspace.didActivateApplicationNotification)
                 .receive(on: RunLoop.main)
                 .sink { [weak self] notification in
-                    guard let self, self.isVisible,
-                          let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    guard
+                        let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
                             as? NSRunningApplication,
-                          app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+                        app.processIdentifier != ProcessInfo.processInfo.processIdentifier
                     else { return }
-                    self.performClose(nil)
+                    self?.dismissForFocusLossIfNeeded()
                 }
                 .store(in: &showCancellables)
         }
+    }
+
+    /// Closes the panel for a focus-loss notification unless the controller says
+    /// this loss is a click on the status item, which the item's own mouse-up
+    /// toggle will handle (issue #224 follow-up).
+    private func dismissForFocusLossIfNeeded() {
+        guard isVisible else { return }
+        if shouldDeferDismissalOnFocusLoss?() == true { return }
+        performClose(nil)
     }
 
     private func removeShowObservers() {

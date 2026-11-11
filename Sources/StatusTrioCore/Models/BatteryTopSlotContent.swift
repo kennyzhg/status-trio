@@ -10,7 +10,8 @@ import Foundation
 /// Battery presence is decided at runtime from the IOKit snapshot
 /// (`BatteryStatus.isPresent`), never from a list of models.
 enum BatteryTopSlotContent: String, CaseIterable, Identifiable, Sendable {
-    /// The battery status on a Mac with a battery; hidden on one without.
+    /// Follow the per-state top markers (#315), including the battery-less
+    /// marker that upstream now offers (plug / bolt / hidden).
     case automatic
     /// Always the battery status (the pre-#274 behaviour).
     case battery
@@ -29,7 +30,7 @@ enum BatteryTopSlotContent: String, CaseIterable, Identifiable, Sendable {
     func resolved(for battery: BatteryStatus) -> Self {
         switch self {
         case .automatic:
-            return battery.isPresent ? .battery : .hidden
+            return .battery
         case .powerWhenPluggedIn:
             return Self.isOnPower(battery) ? .power : .battery
         case .battery, .hidden, .power:

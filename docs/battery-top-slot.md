@@ -1,5 +1,12 @@
 # Battery ring top slot (issue #274)
 
+> Since the merge of upstream 1.9.5 (2026-11-11), upstream's #315 per-state
+> top markers (on battery / charging / connected / no battery) decide what the
+> battery status looks like. This fork's Top Slot sits above them: Automatic and
+> Battery defer to those markers, Hidden closes the gap, and the two Power
+> choices replace it with watts. Location: Settings › App Icon › Top Arc ›
+> Top Markers.
+
 The top gap of the battery ring used to always carry the battery status
 (percentage, bolt or plug). A Mac with no internal battery — Mac mini, Mac
 Studio, Mac Pro, iMac — has no level, so it showed a placeholder `100` that
@@ -8,8 +15,8 @@ gap shows. The ring itself always stays; only the gap content changes.
 
 | Choice | Mac with a battery | Mac with no battery |
 | --- | --- | --- |
-| **Automatic** (default) | battery status (unchanged) | hidden: the gap closes into a full ring |
-| **Battery** | battery status | the historical `100` |
+| **Automatic** (default) | follows the per-state top markers (#315) | follows the battery-less marker (#315: plug / bolt / hidden) |
+| **Battery** | same as Automatic | same as Automatic |
 | **Hidden** | closed gap; the arc still shows the level | closed full ring |
 | **Power (Watts)** | fresh integer watts; battery status while no fresh reading | fresh integer watts; `--` while no fresh reading |
 | **Watts on Power, % on Battery** | watts while connected to power, the battery status on battery | always watts (a desktop is always on power) |
