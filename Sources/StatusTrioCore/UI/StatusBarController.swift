@@ -1112,8 +1112,7 @@ final class StatusBarController: NSObject {
     }
 
     private func shouldConsumeVolumeScrollWheel(_ event: NSEvent) -> Bool {
-        guard event.window === popover.contentViewController?.view.window,
-              settings.popupScrollAdjustsVolume else { return false }
+        guard event.window === popover.contentViewController?.view.window else { return false }
 
         let point = event.locationInWindow
         let window = event.window
@@ -1134,10 +1133,14 @@ final class StatusBarController: NSObject {
         // 2. A scrollable scroll view under the pointer owns the wheel.
         if isPointerOverScrollableScrollView(event) { return false }
 
-        // 3. Panel-wide fallback to the output volume (default preference).
-        guard settings.popupVolumeScrollScope == .panel,
-              store.isVolumeControlAvailable,
-              panelViewModel.volume.canAdjust else {
+        // 3. Opt-in summary-page fallback to the output volume. Sliders were
+        //    handled above; detail pages never change volume (issue #324).
+        guard PanelScrollVolumeFallback.allows(
+            panelScrollEnabled: settings.popupPanelScrollAdjustsVolume,
+            route: panelViewModel.route,
+            isVolumeControlAvailable: store.isVolumeControlAvailable,
+            canAdjustVolume: panelViewModel.volume.canAdjust
+        ) else {
             return false
         }
         return consumeVolume(event: event)
@@ -1940,7 +1943,30 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func showMenu() {
+    /// Pops the right-click context menu below the status item (#302).
+    ///
+    /// The anchor is the button's local bounds, but those bounds can be briefly
+    /// wrong during status-item/menu-bar lifecycle churn, which is what pushed
+    /// the menu away from the icon every so often. Validate the same screen rect
+    /// the panel path uses and, when it is unusable, retry on the next run-loop
+    /// turn instead of popping at the stale position.
+    private func showMenu(attempt: Int = 0) {
+        let screens = NSScreen.screens.map {
+            StatusPanelShortcutScreen(frame: $0.frame, visibleFrame: $0.visibleFrame)
+        }
+        let decision = StatusMenuPresentationPolicy.decision(
+            menuBarRect: visibleMenuBarAnchor()?.screenRect,
+            isStatusItemVisible: isStatusItemVisible,
+            screens: screens,
+            attempt: attempt
+        )
+        guard decision == .present else {
+            DispatchQueue.main.async { [weak self] in
+                self?.showMenu(attempt: attempt + 1)
+            }
+            return
+        }
+
         let menu = StatusMenuBuilder.makeMenu(
             version: Self.appVersion,
             settingsTarget: self,
