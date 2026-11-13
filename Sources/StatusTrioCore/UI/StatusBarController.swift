@@ -153,7 +153,7 @@ final class StatusBarController: NSObject {
     private var latestIconOutput: IconPresentationOutput
     private var popoverDismissMonitor: Any?
     private var volumeScrollMonitor: Any?
-    private let volumeScrollAdjustment = PopupVolumeScrollAdjustment()
+    private var volumeScrollAdjustment = PopupVolumeScrollAdjustment()
     private var volumeScrollSession = PopupVolumeScrollSession()
     private var brightnessScrollSession = PopupLevelScrollSession()
     private var audioInputScrollSession = PopupLevelScrollSession()
@@ -631,6 +631,14 @@ final class StatusBarController: NSObject {
 
     /// Shows the same popover for a Dock icon click, above the clicked icon.
     func togglePopover(anchoredAtScreenPoint point: NSPoint) {
+        // Issue #341: a Dock tile click produces the same close-then-reopen pair
+        // as the status item (#224). The outside-click monitor closes the panel
+        // on mouse-down, then the app-reopen callback reaches this method with
+        // `popover.isShown == false`. Honour the same-click suppression before
+        // the toggle gate so the second click hides instead of reopening.
+        if !popover.isShown, reopenSuppression.shouldSuppressReopen(at: Date()) {
+            return
+        }
         guard popoverToggleGate.shouldAccept(at: Date()) else { return }
         if popover.isShown {
             closePopover()
@@ -1143,7 +1151,7 @@ final class StatusBarController: NSObject {
         ) else {
             return false
         }
-        return consumeVolume(event: event)
+        return consumeVolume(event: event, allowsHorizontal: false)
     }
 
     /// Routes a wheel event to the slider directly under the pointer.
@@ -1156,7 +1164,7 @@ final class StatusBarController: NSObject {
             guard store.isVolumeControlAvailable, panelViewModel.volume.canAdjust else {
                 return true // consume so the wheel does not scroll underneath
             }
-            return consumeVolume(event: event)
+            return consumeVolume(event: event, allowsHorizontal: true)
         case .brightness(let displayID):
             // Sliders own the wheel wherever they are; the scope setting only
             // decides whether empty panel areas also adjust the output volume.
@@ -1178,11 +1186,14 @@ final class StatusBarController: NSObject {
             displayID: "audio-input",
             fallback: fallback
         ) else { return false }
-        let delta = volumeScrollAdjustment.volumeDelta(
+        let delta = volumeScrollAdjustment.levelDelta(
+            deltaX: Double(event.scrollingDeltaX),
             deltaY: Double(event.scrollingDeltaY),
             isPrecise: event.hasPreciseScrollingDeltas,
             isDirectionInverted: event.isDirectionInvertedFromDevice,
-            usesNaturalScrolling: settings.popupVolumeNaturalScrolling
+            timestamp: event.timestamp,
+            target: .audioInput,
+            settings: settings
         )
         guard let delta else { return true }
 
@@ -1204,11 +1215,14 @@ final class StatusBarController: NSObject {
             displayID: displayID,
             fallback: fallback
         ) else { return false }
-        let delta = volumeScrollAdjustment.volumeDelta(
+        let delta = volumeScrollAdjustment.levelDelta(
+            deltaX: Double(event.scrollingDeltaX),
             deltaY: Double(event.scrollingDeltaY),
             isPrecise: event.hasPreciseScrollingDeltas,
             isDirectionInverted: event.isDirectionInvertedFromDevice,
-            usesNaturalScrolling: settings.popupVolumeNaturalScrolling
+            timestamp: event.timestamp,
+            target: .brightness(displayID: displayID),
+            settings: settings
         )
         guard let delta else { return true }
 
@@ -1217,11 +1231,17 @@ final class StatusBarController: NSObject {
         return true
     }
 
-    private func consumeVolume(event: NSEvent) -> Bool {
+    private func consumeVolume(event: NSEvent, allowsHorizontal: Bool) -> Bool {
         let volumeState = panelViewModel.volume
         guard event.window === popover.contentViewController?.view.window,
               store.isVolumeControlAvailable,
               volumeState.canAdjust else {
+            return false
+        }
+        // The panel-wide fallback only owns vertical scrolling; a horizontal
+        // gesture outside a slider must pass through instead of being swallowed.
+        if !allowsHorizontal,
+           abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) {
             return false
         }
         guard event.momentumPhase.isEmpty else { return true }
@@ -1233,12 +1253,14 @@ final class StatusBarController: NSObject {
         ) else {
             return false
         }
-        let delta = volumeScrollAdjustment.volumeDelta(
+        let delta = volumeScrollAdjustment.levelDelta(
+            deltaX: allowsHorizontal ? Double(event.scrollingDeltaX) : 0,
             deltaY: Double(event.scrollingDeltaY),
             isPrecise: event.hasPreciseScrollingDeltas,
             isDirectionInverted: event.isDirectionInvertedFromDevice,
-            usesNaturalScrolling: settings.popupVolumeNaturalScrolling,
-            wheelStep: PopupVolumeScrollAdjustment.volumeWheelStep
+            timestamp: event.timestamp,
+            target: .volume,
+            settings: settings
         )
         guard let delta else { return true }
 

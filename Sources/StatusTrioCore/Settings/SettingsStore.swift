@@ -219,6 +219,17 @@ final class SettingsStore: ObservableObject {
     static let defaultPopupVolumeScrollDirection: PopupVolumeScrollDirection = .up
     static let popupVolumeNaturalScrollingDefaultsKey = "popupVolumeNaturalScrolling"
     static let defaultPopupVolumeNaturalScrolling = false
+    static let popupScrollWheelStepPercentDefaultsKey = "popupScrollWheelStepPercent"
+    static let defaultPopupScrollWheelStepPercent = 10.0
+    static let popupScrollWheelStepPercentRange = 1.0...20.0
+
+    static func validatedPopupScrollWheelStepPercent(_ value: Double) -> Double {
+        guard value.isFinite, popupScrollWheelStepPercentRange.contains(value),
+              abs(value * 2 - (value * 2).rounded()) < 0.000_001 else {
+            return defaultPopupScrollWheelStepPercent
+        }
+        return value
+    }
     /// App-level switch for the scroll-to-change-volume tick (#194). Absent
     /// means "follow the macOS system switch"; present is an explicit choice.
     static let popupVolumeScrollFeedbackDefaultsKey = VolumeScrollFeedbackPreference.key
@@ -1386,6 +1397,14 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    @Published var popupScrollWheelStepPercent: Double {
+        didSet {
+            let valid = Self.validatedPopupScrollWheelStepPercent(popupScrollWheelStepPercent)
+            if valid != popupScrollWheelStepPercent { popupScrollWheelStepPercent = valid }
+            defaults.set(valid, forKey: Self.popupScrollWheelStepPercentDefaultsKey)
+        }
+    }
+
     /// The stored app-level choice for the scroll-to-change-volume tick.
     ///
     /// `nil` means the user has never toggled it, and the effective value
@@ -2543,6 +2562,10 @@ final class SettingsStore: ObservableObject {
         self.popupVolumeNaturalScrolling = defaults.object(
             forKey: Self.popupVolumeNaturalScrollingDefaultsKey
         ) as? Bool ?? Self.defaultPopupVolumeNaturalScrolling
+        self.popupScrollWheelStepPercent = Self.validatedPopupScrollWheelStepPercent(
+            (defaults.object(forKey: Self.popupScrollWheelStepPercentDefaultsKey) as? Double)
+                ?? Self.defaultPopupScrollWheelStepPercent
+        )
         self.popupVolumeScrollFeedbackOverride = defaults.object(
             forKey: Self.popupVolumeScrollFeedbackDefaultsKey
         ) as? Bool
