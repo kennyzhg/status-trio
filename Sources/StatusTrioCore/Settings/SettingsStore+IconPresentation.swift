@@ -46,7 +46,8 @@ extension SettingsStore {
                     prioritizesNetworkErrorsOverInputSource: appearance.connectionOptions.prioritizesNetworkErrors,
                     batteryFullThreshold: appearance.batteryOptions.fullThreshold,
                     bluetoothAudioIconChoice: appearance.bluetoothAudioOptions.iconChoice,
-                    bottomIndicatorSource: bottomIndicatorSource
+                    bottomIndicatorSource: bottomIndicatorSource,
+                    batteryTopSlotContent: appearance.batteryOptions.topSlotContent
                 ),
                 slotBindings: slotBindings,
                 hardwareMetricColors: appearance.hardwareMetricColors,

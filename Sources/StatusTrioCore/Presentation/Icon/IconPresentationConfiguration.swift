@@ -24,6 +24,10 @@ struct IconPresentationRuntimeOptions: Equatable, Sendable {
     /// field), carried alongside the other opaque settings so the live scene
     /// and the settings previews read the same value.
     var bottomIndicatorSource: BottomIndicatorSource = .volume
+    /// What the battery ring's top slot carries (#274, personal fork).
+    /// Runtime-only like `bottomIndicatorSource`: the V1 schema has no field
+    /// for it, so without this the V1 projection would reset it to automatic.
+    var batteryTopSlotContent: BatteryTopSlotContent = .automatic
 
     func applying(to configuration: IconPresentationConfiguration) -> IconPresentationConfiguration {
         let battery = configuration.battery
@@ -47,7 +51,8 @@ struct IconPresentationRuntimeOptions: Equatable, Sendable {
                 chargingMarker: battery.chargingMarker,
                 connectedMarker: battery.connectedMarker,
                 noBatteryMarker: battery.noBatteryMarker,
-                monochromeCharging: battery.monochromeCharging
+                monochromeCharging: battery.monochromeCharging,
+                topSlotContent: batteryTopSlotContent
             ),
             connection: ConnectionIconOptions(
                 showsWiFiIconForEthernet: connection.showsWiFiIconForEthernet,

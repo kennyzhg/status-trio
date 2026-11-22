@@ -196,4 +196,46 @@ final class BatteryTopSlotTests: XCTestCase {
         XCTAssertEqual(received.first, .automatic)
         XCTAssertEqual(received.last, .hidden)
     }
+
+    // MARK: V1 resolver (the path the menu bar and Dock draw since upstream 1.10)
+
+    /// The V1 configuration has no top-slot field, so the choice rides the
+    /// runtime options. Without them the ring fell back to the decorative plug.
+    func testV1ResolverCarriesWattsThroughRuntimeOptions() throws {
+        let settings = SettingsStore(defaults: try makeDefaults())
+        settings.batteryTopSlotContent = .powerWhenPluggedIn
+        let runtime = settings.iconRuntimePresentationOptions
+        XCTAssertEqual(runtime.batteryTopSlotContent, .powerWhenPluggedIn)
+
+        var configuration = IconConfigurationV1.classic
+        configuration.composition.outerRing = SlotSelection(primary: .systemBattery)
+        let system = IconPresentationInputs(
+            snapshot: StatusSnapshot(battery: desktop, wifi: .placeholder, volume: .placeholder),
+            audioIcon: nil,
+            runtimeOptions: runtime,
+            // The battery plugin reads freshness against the wall clock.
+            systemPower: SystemPowerSample(watts: 23.4, readAt: Date())
+        )
+        let output = IconCompositionResolver.resolve(
+            inputs: IconResolutionInputs(system: system, sources: .empty),
+            configuration: configuration
+        )
+        XCTAssertEqual(text(output.scene.outerRing), "23")
+    }
+
+    func testV1ResolverDefaultsToTheBatteryMarkersWithoutRuntimeOptions() {
+        var configuration = IconConfigurationV1.classic
+        configuration.composition.outerRing = SlotSelection(primary: .systemBattery)
+        let system = IconPresentationInputs(
+            snapshot: StatusSnapshot(battery: laptop, wifi: .placeholder, volume: .placeholder),
+            audioIcon: nil,
+            systemPower: SystemPowerSample(watts: 23.4, readAt: now)
+        )
+        let output = IconCompositionResolver.resolve(
+            inputs: IconResolutionInputs(system: system, sources: .empty),
+            configuration: configuration,
+            now: now
+        )
+        XCTAssertNotEqual(text(output.scene.outerRing), "23")
+    }
 }
