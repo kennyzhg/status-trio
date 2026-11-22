@@ -163,6 +163,9 @@ extension SettingsStore {
             batteryFullThreshold: batteryIconOptions.fullThreshold,
             bluetoothAudioIconChoice: bluetoothAudioIconOptions.iconChoice,
             bottomIndicatorSource: bottomIndicatorSource,
+            bottomIndicatorMetric: bottomIndicatorMetric,
+            bottomIndicatorStyle: effectiveBottomIndicatorStyle,
+            bluetoothVolumeColorRole: bluetoothVolumeColorRole,
             batteryTopSlotContent: batteryTopSlotContent
         )
     }
@@ -336,7 +339,8 @@ extension SettingsStore {
     func effectiveIconSlotBindings(
         appearance: StatusIconAppearance,
         inputSourceMarkerStyle: InputSourceMarkerStyle,
-        bottomIndicatorSource: BottomIndicatorSource
+        bottomIndicatorSource: BottomIndicatorSource,
+        bottomIndicatorMetric: HardwareMonitorMetric = .cpuUsage
     ) -> IconSlotBindingsV1 {
         let derived = IconSlotBindingsV1.migrated(
             from: Self.iconConfiguration(
@@ -350,7 +354,9 @@ extension SettingsStore {
             if let primary = stored.primary, !primary.pluginID.hasPrefix("builtin.") {
                 continue
             }
-            guard stored.primary != nil else { continue }
+            // Built-in (including a nil/hidden) primary always follows the current
+            // individual settings. Requiring a non-nil stored primary here left the
+            // footer unbound after switching Hidden → back to a visible source.
             let fallbackIsExternal = stored.fallback.map { !$0.pluginID.hasPrefix("builtin.") } ?? false
             var selection = derived.selection(for: slot)
             if fallbackIsExternal { selection.fallback = stored.fallback }
