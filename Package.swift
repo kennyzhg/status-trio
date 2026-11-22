@@ -9,6 +9,7 @@ let package = Package(
         .executable(name: "StatusTrioAirPodsHelper", targets: ["StatusTrioAirPodsHelper"]),
         .library(name: "AirPodsAudioContext", type: .dynamic, targets: ["AirPodsAudioContext"]),
         .executable(name: "StatusTrio", targets: ["StatusTrio"]),
+        .library(name: "StatusTrioCore", type: .dynamic, targets: ["StatusTrioCore"]),
         .executable(name: "StatusTrioPowerHelper", targets: ["StatusTrioPowerHelper"])
     ],
     dependencies: [
@@ -41,7 +42,9 @@ let package = Package(
                 .linkedFramework("Network"),
                 .linkedFramework("Security"),
                 .linkedFramework("ServiceManagement"),
-                .linkedFramework("SystemConfiguration")
+                .linkedFramework("SystemConfiguration"),
+                // IOReport (private system stub) for estimated CPU cluster frequency.
+                .linkedLibrary("IOReport")
             ]
         ),
         // Shared between the app and the privileged daemon so the daemon does

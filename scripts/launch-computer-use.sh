@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_DISPLAY="automatic"
 PANEL_MODE="settings"
+HARDWARE_DETAIL=""
 REUSE=0
 usage() {
-    echo "Usage: bash scripts/launch-computer-use.sh [--reuse] [--display secondary] [--panel]" >&2
+    echo "Usage: bash scripts/launch-computer-use.sh [--reuse] [--display secondary] [--panel] [--test-open-hardware-detail cpu|gpu|memory|network|disk|fan]" >&2
     exit 2
 }
 while [[ $# -gt 0 ]]; do
@@ -26,9 +27,22 @@ while [[ $# -gt 0 ]]; do
             PANEL_MODE="panel"
             shift
             ;;
+        --test-open-hardware-detail=*)
+            [[ -z "$HARDWARE_DETAIL" ]] || usage
+            HARDWARE_DETAIL="${1#*=}"
+            case "$HARDWARE_DETAIL" in
+                cpu|gpu|memory|network|disk|fan) ;;
+                *) usage ;;
+            esac
+            shift
+            ;;
         *) usage ;;
     esac
 done
+# The detail page only exists inside the status panel; accept either order.
+if [[ -n "$HARDWARE_DETAIL" && "$PANEL_MODE" != "panel" ]]; then
+    usage
+fi
 
 BRANCH="$(git -C "$ROOT" branch --show-current)"
 if [[ -z "$BRANCH" || "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
@@ -61,7 +75,7 @@ trap release_lock EXIT
 
 # Reuse is read-only: it neither rebuilds nor sends a reopen to the process.
 if [[ "$REUSE" == 1 ]]; then
-    swift "$ROOT/scripts/computer-use-instance.swift" reuse "$BUNDLE_ID" "$APP_PATH" "$TEST_DISPLAY" "$PANEL_MODE"
+    swift "$ROOT/scripts/computer-use-instance.swift" reuse "$BUNDLE_ID" "$APP_PATH" "$TEST_DISPLAY" "$PANEL_MODE" ${HARDWARE_DETAIL:+"$HARDWARE_DETAIL"}
     exit 0
 fi
 
@@ -84,5 +98,5 @@ if [[ "$(read_plist CFBundleIdentifier)" != "$BUNDLE_ID" \
     exit 1
 fi
 
-swift "$ROOT/scripts/computer-use-instance.swift" launch "$BUNDLE_ID" "$APP_PATH" "$TEST_DISPLAY" "$PANEL_MODE"
+swift "$ROOT/scripts/computer-use-instance.swift" launch "$BUNDLE_ID" "$APP_PATH" "$TEST_DISPLAY" "$PANEL_MODE" ${HARDWARE_DETAIL:+"$HARDWARE_DETAIL"}
 shasum -a 256 "$APP_PATH/Contents/MacOS/StatusTrio"

@@ -1408,6 +1408,119 @@ final class SystemStatusStoreTests: XCTestCase {
         store.stop()
     }
 
+    /// A user drag/click must reach `popupSnapshot` without waiting for the
+    /// 500 ms popup debounce, while a non-interactive change is still held by
+    /// it. `setVolume` publishes with `immediately: true`.
+    func testInteractiveVolumeUpdateBypassesPopupDebounce() async {
+        let battery = FakeBatteryMonitor()
+        let volume = FakeVolumeMonitor()
+        let sleeper = ManualSleeper()
+        let initial = StatusSnapshot(
+            battery: makeBattery(percentage: 100),
+            wifi: .placeholder,
+            volume: VolumeStatus(
+                scalar: 0.2, isMuted: false, deviceName: "Speaker", canSetVolume: true
+            )
+        )
+        let store = SystemStatusStore(
+            batteryMonitor: battery,
+            wifiMonitor: FakeWiFiMonitor(),
+            volumeMonitor: volume,
+            volumeFeedback: FakeVolumeFeedbackPlayer(),
+            refreshInterval: .seconds(60),
+            popupDebounceSleep: { _ in await sleeper.sleep() },
+            initialSnapshot: initial
+        )
+        store.start()
+        store.setPopoverVisible(true)
+        defer { store.stop() }
+
+        // Non-interactive: the battery change is held by the debounce.
+        battery.send(makeBattery(percentage: 42))
+        await sleeper.waitForCallCount(1)
+        XCTAssertEqual(store.popupSnapshot.battery.percentage, 100)
+
+        // Interactive: the drag publishes the full snapshot right away and
+        // cancels the pending debounce.
+        store.setVolume(0.37)
+        XCTAssertEqual(store.popupSnapshot.volume.scalar, 0.37)
+        XCTAssertEqual(store.popupSnapshot.battery.percentage, 42)
+
+        // The cancelled debounce must not resurrect the older snapshot.
+        sleeper.releaseAll()
+        await Task.yield()
+        XCTAssertEqual(store.popupSnapshot.volume.scalar, 0.37)
+        XCTAssertEqual(store.popupSnapshot.battery.percentage, 42)
+    }
+
+    func testRaisingVolumeClearsAutomaticMuteOptimistically() async {
+        let volume = FakeVolumeMonitor()
+        let initial = StatusSnapshot(
+            battery: makeBattery(percentage: 100),
+            wifi: .placeholder,
+            volume: VolumeStatus(
+                scalar: 0,
+                isMuted: true,
+                deviceName: "Speaker",
+                canSetVolume: true,
+                canMute: true,
+                isAutoMuted: true
+            )
+        )
+        let store = SystemStatusStore(
+            batteryMonitor: FakeBatteryMonitor(),
+            wifiMonitor: FakeWiFiMonitor(),
+            volumeMonitor: volume,
+            volumeFeedback: FakeVolumeFeedbackPlayer(),
+            refreshInterval: .seconds(60),
+            initialSnapshot: initial
+        )
+        store.start()
+        store.setPopoverVisible(true)
+        defer { store.stop() }
+
+        store.setVolume(0.4)
+
+        XCTAssertEqual(store.popupSnapshot.volume.scalar, 0.4)
+        XCTAssertFalse(store.popupSnapshot.volume.isMuted)
+        XCTAssertFalse(store.popupSnapshot.volume.isAutoMuted)
+        XCTAssertEqual(volume.setVolumeValues.last, 0.4)
+    }
+
+    func testRaisingVolumePreservesManualMute() async {
+        let volume = FakeVolumeMonitor()
+        let initial = StatusSnapshot(
+            battery: makeBattery(percentage: 100),
+            wifi: .placeholder,
+            volume: VolumeStatus(
+                scalar: 0.5,
+                isMuted: true,
+                deviceName: "Speaker",
+                canSetVolume: true,
+                canMute: true,
+                isAutoMuted: false
+            )
+        )
+        let store = SystemStatusStore(
+            batteryMonitor: FakeBatteryMonitor(),
+            wifiMonitor: FakeWiFiMonitor(),
+            volumeMonitor: volume,
+            volumeFeedback: FakeVolumeFeedbackPlayer(),
+            refreshInterval: .seconds(60),
+            initialSnapshot: initial
+        )
+        store.start()
+        store.setPopoverVisible(true)
+        defer { store.stop() }
+
+        store.setVolume(0.7)
+
+        XCTAssertEqual(store.popupSnapshot.volume.scalar, 0.7)
+        XCTAssertTrue(store.popupSnapshot.volume.isMuted)
+        XCTAssertFalse(store.popupSnapshot.volume.isAutoMuted)
+        XCTAssertEqual(volume.setVolumeValues.last, 0.7)
+    }
+
     func testPopoverOpeningBlanksWiFiNameUntilTheFreshNameArrives() async {
         let wifi = FakeWiFiMonitor()
         let store = makeStore(
@@ -3033,6 +3146,12 @@ private final class StoreIntervalScannerSpy: BluetoothLEBatteryScanning {
     func start() { isRunning = true; startCount += 1 }
     func refresh() {}
     func stop() { isRunning = false; isScanning = false; stopCount += 1 }
+}
+
+private final class StoreBluetoothPairedDeviceReader: BluetoothPairedDeviceReading {
+    func read(completion: @escaping @Sendable (BluetoothWorkerResult) -> Void) {
+        completion(.success([]))
+    }
 }
 
 @MainActor

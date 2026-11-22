@@ -41,6 +41,19 @@ protocol HelperReadinessProviding {
     /// re-evaluate against the current battery snapshot instead of waiting for
     /// the next one.
     var readinessPublisher: AnyPublisher<Bool, Never> { get }
+    /// Re-reads the helper's native status/readiness now (called on user action
+    /// so a click never acts on a stale helper state).
+    func refreshStatus()
+    func setBackgroundRecoveryNeeded(_ needed: Bool)
+    var recoveryProbePublisher: AnyPublisher<Void, Never> { get }
+    func verifyForUse() async -> Bool
+}
+
+extension HelperReadinessProviding {
+    func refreshStatus() {}
+    func setBackgroundRecoveryNeeded(_ needed: Bool) {}
+    var recoveryProbePublisher: AnyPublisher<Void, Never> { Empty().eraseToAnyPublisher() }
+    func verifyForUse() async -> Bool { isReady }
 }
 
 /// Production provider. Resolves the shared manager lazily so a store that
@@ -52,11 +65,22 @@ struct SharedHelperReadiness: HelperReadinessProviding {
     var readinessPublisher: AnyPublisher<Bool, Never> {
         PrivilegedHelperManager.shared.readinessPublisher
     }
+
+    func refreshStatus() { PrivilegedHelperManager.shared.refreshForUse() }
+    func setBackgroundRecoveryNeeded(_ needed: Bool) {
+        PrivilegedHelperManager.shared.setBackgroundRecoveryNeeded(needed)
+    }
+    var recoveryProbePublisher: AnyPublisher<Void, Never> {
+        PrivilegedHelperManager.shared.recoveryProbePublisher
+    }
+    func verifyForUse() async -> Bool { await PrivilegedHelperManager.shared.verifyForUse() }
 }
 
 extension PrivilegedHelperManager: HelperReadinessProviding {
     /// The same `isReady` rule the UI gates the switches with, re-published so
     /// the automation can re-evaluate when approval or responsiveness lands.
+    func refreshStatus() { refreshForUse() }
+
     var readinessPublisher: AnyPublisher<Bool, Never> {
         Publishers.CombineLatest3($isEnabled, $status, $isHelperResponsive)
             .map { enabled, status, isResponsive in
@@ -134,6 +158,12 @@ final class SystemStatusStore: ObservableObject {
     /// The single owner of periodic whole-machine power reads shared by the
     /// icon centre slot, the panel summary and the details page.
     let powerSampling: PowerSamplingService
+    /// The single owner of periodic hardware metrics (CPU/GPU usage, CPU
+    /// temperature, fan RPM). Consumers register a demand; with no consumer it
+    /// does no work at all.
+    let hardwareMetrics: HardwareMetricsService
+    /// The visible hardware detail page's on-demand top-application list.
+    let topApps: TopAppsService
     let wifiNetworks: WiFiNetworkController
     /// The wired link's address configuration. Read while the popover is open on
     /// an Ethernet connection and dropped when either stops being true, so the
@@ -162,8 +192,14 @@ final class SystemStatusStore: ObservableObject {
     /// The High Power Mode write path (#235). Same helper as `lowPowerMode`,
     /// dormant for the same reason; the two bridges share the one LaunchDaemon.
     let highPowerMode: HighPowerModeController
+    /// Keep-awake quick actions (#295): display assertion plus the helper-backed
+    /// lid-close toggle. Dormant until the user turns one on.
+    let sleepControl: SleepControlController
     /// The low-battery → Low Power Mode automation (#246).
     private let lowPowerAutoEnable = LowPowerAutoEnableController()
+    private var autoLowPowerVerificationTask: Task<Void, Never>?
+    private var autoLowPowerVerificationRequested = false
+    private var autoLowPowerHelperVerified = false
     /// Helper readiness for the #246 automation. Production reads the shared
     /// manager; tests inject a fake.
     private let helperReadiness: any HelperReadinessProviding
@@ -191,6 +227,7 @@ final class SystemStatusStore: ObservableObject {
     private var externalVolumeSettingsCancellable: AnyCancellable?
     private weak var boundExternalVolumeSettings: SettingsStore?
     private var externalBrightnessSettingsCancellable: AnyCancellable?
+    private var brightnessScaleSettingsCancellable: AnyCancellable?
     private weak var boundExternalBrightnessSettings: SettingsStore?
     private var localIPSettingsCancellable: AnyCancellable?
     private var applicationEnergySettingsCancellable: AnyCancellable?
@@ -200,6 +237,7 @@ final class SystemStatusStore: ObservableObject {
     private var mobileBatterySettingsCancellable: AnyCancellable?
     private var lowPowerModeSettingsCancellable: AnyCancellable?
     private var lowPowerModeSnapshotCancellable: AnyCancellable?
+    private var sleepControlPowerCancellable: AnyCancellable?
     private var lowPowerAutoEnableCancellable: AnyCancellable?
     /// The threshold and the helper readiness are preconditions of #246 rather
     /// than battery events, so each has its own subscription to re-evaluate.
@@ -263,6 +301,12 @@ final class SystemStatusStore: ObservableObject {
     /// (slider drag/wheel). While active, a stale read-back must not move the
     /// target; the pointer's value wins until the gesture ends.
     private var brightnessGestureDisplayIDs: Set<String> = []
+    /// True while a pointer drag/click owns the volume slider. The panel reads
+    /// this to skip its 10 Hz level coalescer so the row follows the gesture
+    /// instead of lagging behind it. Wheel gestures are tracked separately by
+    /// the panel view model; background monitor reads never set it, so those
+    /// still coalesce.
+    private(set) var isVolumeGestureActive = false
     /// Optimistic input gain while the input monitor confirms the write.
     private var pendingInputScalar: Double?
     private var pendingInputDeviceID: AudioDeviceID?
@@ -327,6 +371,8 @@ final class SystemStatusStore: ObservableObject {
         wakeNotificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         batteryDetails: BatteryDetailsController = BatteryDetailsController(),
         powerSampling: PowerSamplingService = PowerSamplingService(),
+        hardwareMetrics: HardwareMetricsService = HardwareMetricsService(),
+        topApps: TopAppsService = TopAppsService(),
         wifiNetworks: WiFiNetworkController = WiFiNetworkController(),
         primaryLink: PrimaryLinkController = PrimaryLinkController(),
         localIP: LocalIPController = LocalIPController(),
@@ -338,6 +384,7 @@ final class SystemStatusStore: ObservableObject {
         bluetoothListeningModes: BluetoothListeningModeController = BluetoothListeningModeController(),
         lowPowerMode: LowPowerModeController = LowPowerModeController(),
         highPowerMode: HighPowerModeController = HighPowerModeController(),
+        sleepControl: SleepControlController = SleepControlController(),
         helperReadiness: (any HelperReadinessProviding)? = nil,
         powerModeNotifications: any PowerModeNotificationMonitoring = PowerModeNotificationMonitor(),
         vpnConnectionController: any VPNConnectionControlling = SystemVPNConnectionController(),
@@ -360,6 +407,8 @@ final class SystemStatusStore: ObservableObject {
         self.wakeNotificationCenter = wakeNotificationCenter
         self.batteryDetails = batteryDetails
         self.powerSampling = powerSampling
+        self.hardwareMetrics = hardwareMetrics
+        self.topApps = topApps
         batteryDetails.powerSampling = powerSampling
         self.wifiNetworks = wifiNetworks
         self.primaryLink = primaryLink
@@ -374,6 +423,7 @@ final class SystemStatusStore: ObservableObject {
         self.bluetoothListeningModes = bluetoothListeningModes
         self.lowPowerMode = lowPowerMode
         self.highPowerMode = highPowerMode
+        self.sleepControl = sleepControl
         self.helperReadiness = helperReadiness ?? SharedHelperReadiness()
         self.powerModeNotifications = powerModeNotifications
         self.snapshot = initialSnapshot
@@ -438,6 +488,10 @@ final class SystemStatusStore: ObservableObject {
                 // over-polling is the safe direction, permanent staleness is
                 // not.
                 self.isDisplayAsleep = false
+                // Rebuild the CPU tick baseline and refresh hardware metrics once
+                // a card consumer exists again.
+                self.hardwareMetrics.wake()
+                self.topApps.wake()
                 // Unlike the icon fallback poll, an energy scan must stay
                 // paused through a dark wake while the display is still off.
                 self.isApplicationEnergySystemAsleep = false
@@ -467,6 +521,10 @@ final class SystemStatusStore: ObservableObject {
                 // not strand the scanner behind a stale display flag.
                 self?.bluetoothDevices.setSystemSleeping(true)
                 self?.reconcileBluetoothDemand()
+                // Stop hardware sampling and discard any in-flight read while
+                // the machine is asleep.
+                self?.hardwareMetrics.sleep()
+                self?.topApps.sleep()
             }
         }
 
@@ -526,6 +584,16 @@ final class SystemStatusStore: ObservableObject {
         }
 
         batteryMonitor.start()
+        sleepControl.start()
+        sleepControl.updatePowerState(battery: snapshot.battery)
+        sleepControlPowerCancellable = $snapshot
+            .map(\.battery)
+            .removeDuplicates()
+            .sink { [weak self] battery in
+                Task { @MainActor [weak self] in
+                    self?.sleepControl.updatePowerState(battery: battery)
+                }
+            }
         wifiMonitor.start()
         connectionMonitor?.start()
         volumeMonitor.start()
@@ -629,6 +697,8 @@ final class SystemStatusStore: ObservableObject {
         inputSettingsCancellable = nil
         externalVolumeSettingsCancellable?.cancel()
         externalVolumeSettingsCancellable = nil
+        brightnessScaleSettingsCancellable?.cancel()
+        brightnessScaleSettingsCancellable = nil
         applicationEnergySettingsCancellable?.cancel()
         applicationEnergySettingsCancellable = nil
         batteryDetails.energyApps.stop()
@@ -638,12 +708,16 @@ final class SystemStatusStore: ObservableObject {
         lowPowerModeSettingsCancellable = nil
         lowPowerModeSnapshotCancellable?.cancel()
         lowPowerModeSnapshotCancellable = nil
+        sleepControlPowerCancellable?.cancel()
+        sleepControlPowerCancellable = nil
+        sleepControl.stop()
         lowPowerAutoEnableCancellable?.cancel()
         lowPowerAutoEnableCancellable = nil
         lowPowerAutoEnableThresholdCancellable?.cancel()
         lowPowerAutoEnableThresholdCancellable = nil
         lowPowerAutoEnableReadinessCancellable?.cancel()
         lowPowerAutoEnableReadinessCancellable = nil
+        resetAutoLowPowerVerification()
         boundLowPowerSettings = nil
         appleDeviceSettingsCancellable?.cancel()
         appleDeviceSettingsCancellable = nil
@@ -688,6 +762,8 @@ final class SystemStatusStore: ObservableObject {
         highPowerMode.onSuccessfulWrite = nil
 
         powerSampling.stopAll()
+        hardwareMetrics.stopAll()
+        topApps.stop()
         batteryDetails.deactivate()
         mobileBattery.stop()
         lowPowerMode.stop()
@@ -702,6 +778,7 @@ final class SystemStatusStore: ObservableObject {
         pendingBrightnessScalars.removeAll()
         pendingBrightnessSequences.removeAll()
         brightnessGestureDisplayIDs.removeAll()
+        isVolumeGestureActive = false
         monitorTasks.forEach { $0.cancel() }
         monitorTasks.removeAll()
         refreshTask?.cancel()
@@ -731,7 +808,16 @@ final class SystemStatusStore: ObservableObject {
             return
         }
         let previousScalar = liveVolume.scalar
-        liveVolume = liveVolume.replacingScalar(min(1, max(0, scalar)))
+        let clampedScalar = min(1, max(0, scalar))
+        var nextVolume = liveVolume.replacingScalar(clampedScalar)
+        if clampedScalar > 0, liveVolume.isAutoMuted {
+            // Raising the level restores sound; mirror the controller's
+            // automatic unmute here so the mute icon does not lag behind the
+            // read-back. A user's manual mute has isAutoMuted == false and is
+            // left untouched.
+            nextVolume = nextVolume.replacingMuted(false)
+        }
+        liveVolume = nextVolume
         publish(snapshot.replacingVolume(liveVolume), immediately: true)
         volumeController?.setVolume(liveVolume.scalar ?? 0)
 
@@ -744,7 +830,17 @@ final class SystemStatusStore: ObservableObject {
         }
     }
 
-    func finishVolumeAdjustment() { volumeController?.flushPendingVolume() }
+    /// Marks the start of a pointer drag/click on the volume slider so the
+    /// panel can publish level changes without coalescing them.
+    func beginVolumeAdjustment() {
+        guard !hasStopped else { return }
+        isVolumeGestureActive = true
+    }
+
+    func finishVolumeAdjustment() {
+        isVolumeGestureActive = false
+        volumeController?.flushPendingVolume()
+    }
 
     func toggleMute() {
         guard !hasStopped,
@@ -1150,6 +1246,14 @@ final class SystemStatusStore: ObservableObject {
             .sink { [weak self] configurations in
                 self?.brightnessMonitor.setExternalBrightnessConfigurations(configurations)
             }
+        brightnessMonitor.setUseBetterDisplayCombinedBrightness(
+            settings.useBetterDisplayCombinedBrightness
+        )
+        brightnessScaleSettingsCancellable = settings.$useBetterDisplayCombinedBrightness
+            .removeDuplicates()
+            .sink { [weak self] enabled in
+                self?.brightnessMonitor.setUseBetterDisplayCombinedBrightness(enabled)
+            }
     }
 
     func refreshBetterDisplayDevices() {
@@ -1180,6 +1284,9 @@ final class SystemStatusStore: ObservableObject {
         // and an open into a single visible snapshot.
         if visible && !isPopoverVisible { popoverOpenGeneration &+= 1 }
         isPopoverVisible = visible
+        // Closing can interrupt a drag before its end callback runs; never leave
+        // the panel bypassing the level coalescer past the gesture.
+        if !visible { isVolumeGestureActive = false }
         // The system's own state may have changed while the popover was closed
         // (Control Center, the battery menu), so re-read it through the helper
         // before the battery row shows a stale Low Power Mode value.
@@ -1593,10 +1700,6 @@ final class SystemStatusStore: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] enabled in
                 guard let self else { return }
-                guard enabled else {
-                    self.lowPowerAutoEnable.reset()
-                    return
-                }
                 // Enabling the automation while the battery is already low must
                 // not wait for the next snapshot to act.
                 self.evaluateLowPowerAutoEnable(
@@ -1670,14 +1773,42 @@ final class SystemStatusStore: ObservableObject {
         let isEnabled = (automationOverride ?? settings.autoEnablesLowPowerMode)
             && (controlsOverride ?? settings.controlsLowPowerMode)
             && HighPowerModeController.supportsCurrentPlatform
-        let shouldEnable = lowPowerAutoEnable.evaluate(
-            battery: battery,
-            threshold: thresholdOverride ?? settings.autoLowPowerThreshold,
-            isEnabled: isEnabled,
-            isHelperReady: readinessOverride ?? helperReadiness.isReady
-        )
-        guard shouldEnable else { return }
-        lowPowerMode.setLowPowerMode(true)
+        let threshold = thresholdOverride ?? settings.autoLowPowerThreshold
+        if autoLowPowerVerificationRequested, autoLowPowerVerificationTask == nil,
+           let readinessOverride {
+            autoLowPowerHelperVerified = readinessOverride
+        }
+        guard lowPowerAutoEnable.updateCycle(battery: battery, threshold: threshold, isEnabled: isEnabled) else {
+            if !isEnabled || battery.isConnectedToPower || (battery.isPresent && battery.rawPercentage != nil) {
+                resetAutoLowPowerVerification()
+            }
+            return
+        }
+        guard !lowPowerAutoEnable.didAutoEnableThisCycle else { return }
+        if !autoLowPowerVerificationRequested {
+            autoLowPowerVerificationRequested = true
+            autoLowPowerVerificationTask = Task { [weak self, helperReadiness] in
+                guard !Task.isCancelled else { return }
+                let ready = await helperReadiness.verifyForUse()
+                guard !Task.isCancelled, let self else { return }
+                self.autoLowPowerVerificationTask = nil
+                self.evaluateLowPowerAutoEnable(battery: self.snapshot.battery, readinessOverride: ready)
+            }
+            return
+        }
+        // A battery update alone must not reuse cached readiness after a failed
+        // verification. A later positive readiness event can still finish this cycle.
+        guard autoLowPowerVerificationTask == nil, autoLowPowerHelperVerified else { return }
+        if lowPowerAutoEnable.evaluate(battery: battery, threshold: threshold, isEnabled: true) {
+            lowPowerMode.setLowPowerMode(true)
+        }
+    }
+
+    private func resetAutoLowPowerVerification() {
+        autoLowPowerVerificationTask?.cancel()
+        autoLowPowerVerificationTask = nil
+        autoLowPowerVerificationRequested = false
+        autoLowPowerHelperVerified = false
     }
 
     private func updateAppleRefreshDemand() {
@@ -2050,6 +2181,10 @@ final class SystemStatusStore: ObservableObject {
         // Interactive writes (wheel/drag) must not wait for the popup debounce:
         // a burst of wheel events keeps cancelling it, so the panel only updated
         // after the gesture stopped.
+        //
+        // setPopoverVisible(true) runs before presentPopover calls popover.show,
+        // so this stays true through the open animation: an interaction that
+        // starts while the panel is appearing is applied, never dropped.
         guard isPopoverVisible else { return }
         popupPublishTask?.cancel()
         popupPublishTask = nil
@@ -2136,6 +2271,7 @@ private extension VolumeStatus {
             currentDevice: currentDevice,
             outputDevices: outputDevices,
             canSetVolume: canSetVolume, canMute: canMute,
+            isAutoMuted: isAutoMuted,
             muteState: muteState,
             externalVolumeTransitionGeneration:
                 externalVolumeTransitionGeneration,
@@ -2144,6 +2280,8 @@ private extension VolumeStatus {
     }
 
     func replacingMuted(_ isMuted: Bool) -> VolumeStatus {
+        // A mute change is a user-controlled state; it never carries the app's
+        // automatic-mute ownership.
         VolumeStatus(
             scalar: scalar,
             isMuted: isMuted,
@@ -2151,6 +2289,7 @@ private extension VolumeStatus {
             currentDevice: currentDevice,
             outputDevices: outputDevices,
             canSetVolume: canSetVolume, canMute: canMute,
+            isAutoMuted: false,
             muteState: isMuted ? .muted : .unmuted,
             externalVolumeTransitionGeneration:
                 externalVolumeTransitionGeneration,

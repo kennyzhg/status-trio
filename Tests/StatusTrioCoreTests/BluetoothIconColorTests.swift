@@ -112,6 +112,15 @@ final class BluetoothIconColorTests: XCTestCase {
         XCTAssertNotEqual(custom, foreground)
     }
 
+    func testPanelTitleTintMatchesTheWiFiConvention() {
+        // The panel title glyph follows the Wi-Fi row (#352): system ink while
+        // the radio is on, secondary ink everywhere else.
+        XCTAssertEqual(BluetoothTitleTintResolver.tint(for: .on), .primary)
+        XCTAssertEqual(BluetoothTitleTintResolver.tint(for: .off), .secondary)
+        XCTAssertEqual(BluetoothTitleTintResolver.tint(for: .unknown), .secondary)
+        XCTAssertEqual(BluetoothTitleTintResolver.tint(for: .unavailable), .secondary)
+    }
+
     func testStorageRoundTripsAllModes() {
         for selection: BluetoothIconColorSelection in [
             .systemBlue,

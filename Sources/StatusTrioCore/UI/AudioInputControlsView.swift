@@ -81,11 +81,14 @@ struct AudioInputVolumeDraft {
 
 struct AudioInputControlsView: View {
     @EnvironmentObject private var localization: Localization
+    @Environment(\.statusPanelBoldTextEnabled) private var panelBoldText
 
     let state: AudioInputPanelState
     let actions: StatusPanelActions
     let scrollTargets: PopoverScrollTargets
     let onOpenSoundSettings: () -> Void
+    var fillColor: Color = .primary
+    var matchesBrightnessThickness: Bool = false
 
     @State private var volumeDraft = AudioInputVolumeDraft()
     @State private var isDeviceListExpanded = false
@@ -165,7 +168,7 @@ struct AudioInputControlsView: View {
                 PanelLevelSlider(
                     value: sliderValue,
                     isEnabled: state.canAdjust,
-                    tint: state.muteState == .muted ? Color.secondary : Color.accentColor,
+                    tint: state.muteState == .muted ? Color.secondary : fillColor,
                     accessibilityLabel: state.sliderLabel,
                     accessibilityValue: sliderAccessibilityValue,
                     accessibilityHint: state.canAdjust
@@ -174,8 +177,12 @@ struct AudioInputControlsView: View {
                     onEditingChanged: { editing in
                         volumeDraft.setEditing(editing)
                     },
-                    height: PanelLevelSliderMetrics.compactSlotHeight,
-                    barHeight: PanelLevelSliderMetrics.compactBarHeight
+                    height: matchesBrightnessThickness
+                        ? PanelLevelSliderMetrics.controlHeight
+                        : PanelLevelSliderMetrics.compactSlotHeight,
+                    barHeight: matchesBrightnessThickness
+                        ? PanelLevelSliderMetrics.barHeight
+                        : PanelLevelSliderMetrics.compactBarHeight
                 )
                 .help(state.canAdjust
                     ? localization.string(.audioInputVolume)
@@ -233,7 +240,7 @@ struct AudioInputControlsView: View {
             Image(systemName: "mic.fill")
                 .overlay(alignment: .topTrailing) {
                     Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 9, weight: .regular))
                 }
         } else {
             Image(systemName: state.muteSymbol)
@@ -243,9 +250,6 @@ struct AudioInputControlsView: View {
     @ViewBuilder
     private var deviceList: some View {
         if state.showsDeviceList {
-            Divider()
-                .padding(.top, 2)
-
             VStack(spacing: 2) {
                 ForEach(state.visibleRows(expanded: isDeviceListExpanded)) { row in
                     Button {
@@ -263,7 +267,7 @@ struct AudioInputControlsView: View {
                             .accessibilityHidden(true)
 
                             Text(row.name)
-                                .font(.body.weight(row.selected ? .semibold : .regular))
+                                .font(.body.weight(row.selected && panelBoldText ? .semibold : .regular))
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -274,7 +278,9 @@ struct AudioInputControlsView: View {
                                     .foregroundStyle(.orange)
                             }
                         }
-                        .padding(.vertical, 3)
+                        // Same vertical insets as the Bluetooth device row
+                        // (top 0 / bottom 5): 8pt first-row gap, matching rhythm.
+                        .padding(.bottom, 5)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

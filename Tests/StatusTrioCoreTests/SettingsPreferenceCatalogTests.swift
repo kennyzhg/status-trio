@@ -4,17 +4,38 @@ import XCTest
 
 @MainActor
 final class SettingsPreferenceCatalogTests: XCTestCase {
+    func testSlotBindingsRoundTripIncludingAnUnknownExternalID() {
+        withStore { source, _ in
+            source.setIconSlotBinding(
+                primary: .init(pluginID: "com.example.latency", presentationID: "value"),
+                fallback: .init(pluginID: "builtin.network", presentationID: "center"),
+                for: .center)
+            let snapshot = SettingsPreferenceCatalog.snapshot(source)
+            withStore { target, _ in
+                SettingsPreferenceCatalog.apply(snapshot, to: target)
+                XCTAssertEqual(target.iconSlotBindings.center.primary?.pluginID, "com.example.latency")
+                XCTAssertEqual(target.iconSlotBindings.center.fallback?.pluginID, "builtin.network")
+                XCTAssertEqual(
+                    SettingsPreferenceCatalog.snapshot(target)["iconSlotBindings"],
+                    snapshot["iconSlotBindings"])
+            }
+        }
+    }
+
     func testSnapshotUsesAnExplicitPortableAllowlist() {
         withStore { store, defaults in
             defaults.set("private-value", forKey: "unrecognizedFutureSetting")
             let snapshot = SettingsPreferenceCatalog.snapshot(store)
             let expected: Set<String> = [
                 "appIconPlacement", "dockIconBackgroundPreference", "panelBackgroundStyle",
+                "panelLevelSliderColor", "panelLevelSliderMatchesBrightnessThickness",
                 "menuBarRightClickAction", "iconSize", "batteryOnBatteryMarker",
                 "batteryChargingMarker", "batteryConnectedMarker", "batteryNoBatteryMarker",
                 "showsBatteryPowerFlow", "showsBatteryPowerInfoBar", "showsHighEnergyApps",
+                "showsPanelDetailsAlongside", "showsPanelOnHover",
                 "highEnergyAppsRefreshIntervalSeconds", "showsChargeToFullNowButton",
                 "showsMenuBarChargingEffect", "showsDockChargingEffect", "showsChargingBoltHeartbeat",
+                "iconSlotBindings",
                 "batterySplitGapProgress", "usesBatteryStatusColors", "monochromeChargingRing",
                 "batteryStatusColors", "batterySymbolScale", "batteryCriticalThreshold",
                 "autoLowPowerThreshold", "batteryFullThreshold",
@@ -27,11 +48,12 @@ final class SettingsPreferenceCatalogTests: XCTestCase {
                 "autoEnablesLowPowerMode", "showsAppleDevicesAndBattery",
                 "refreshesAppleBatteriesInBackground", "appleBatteryRefreshIntervalMinutes",
                 "showsBluetoothListeningMode", "bluetoothAudioIconChoiceRawValue", "wifiSymbolScale",
-                "volumeDisplayStyle", "ringStrokeStyle", "refreshIntervalOnBatterySeconds",
+                "volumeDisplayStyle", "ringStrokeStyle", "hardwareBackgroundHistoryEnabled", "hardwarePanelRefreshSeconds", "hardwareHistoryWindowMinutes", "hardwareDownloadCapMbps", "hardwareUploadCapMbps", "hardwareNetworkChartFixedScale", "showsHardwareRings", "showsHardwareSummaryRow", "showsHardwareTopApps", "enabledHardwareRingSlots", "enabledHardwareSummaryMetrics", "memoryRingDisplayMode", "ssdRingDisplayMode", "hardwareTemperatureMonitoringEnabled", "cpuRingCenterContent", "gpuRingCenterContent", "refreshIntervalOnBatterySeconds",
                 "refreshIntervalOnPowerSeconds", "maxVisibleOutputDevices", "alwaysShowsAllOutputDevices",
                 "maxVisibleInputDevices", "alwaysShowsAllInputDevices", "showsBluetoothDeviceList",
                 "maxVisibleBluetoothDevices", "hidesGhostBluetoothDevices", "popupSectionOrder",
-                "enabledPopupSections", "popupPanelScrollAdjustsVolume", "returnsToSummaryOnOpen",
+                "enabledPopupSections", "useBetterDisplayCombinedBrightness",
+                "popupPanelScrollAdjustsVolume", "returnsToSummaryOnOpen",
                 "popupVolumeNaturalScrolling", "popupVolumeScrollFeedbackOverride", "popupScrollWheelStepPercent"
             ]
             XCTAssertEqual(Set(snapshot.keys), expected)
@@ -46,11 +68,16 @@ final class SettingsPreferenceCatalogTests: XCTestCase {
             source.monochromeChargingRing = false
             source.popupScrollWheelStepPercent = 2.5
             source.popupVolumeScrollFeedbackOverride = true
+            source.batteryStatusColors.discharging = .preset(.amber)
             source.batteryStatusColors.charging = .custom(.init(hue: 0.2, saturation: 0.6, brightness: 0.8))
             source.bluetoothIconColor = .custom(.init(hue: 0.1, saturation: 0.4, brightness: 0.9))
+            source.panelLevelSliderColor = .custom(IconRGBA(red: 0.2, green: 0.45, blue: 0.8, alpha: 1))
+            source.panelLevelSliderMatchesBrightnessThickness = true
             source.bluetoothAudioIconChoice = .airpods
             source.setPopupSection(.brightness, enabled: true)
             source.movePopupSections(fromOffsets: IndexSet(integer: 7), toOffset: 0)
+            source.setHardwareRingSlot(.gpu, enabled: false)
+            source.setHardwareSummaryMetric(.fan, enabled: false)
             let snapshot = SettingsPreferenceCatalog.snapshot(source)
             let prepared = SettingsPreferenceCatalog.prepare(snapshot)
             XCTAssertTrue(prepared.warnings.isEmpty)
@@ -81,6 +108,86 @@ final class SettingsPreferenceCatalogTests: XCTestCase {
                 XCTAssertEqual(prepared.values["popupScrollWheelStepPercent"], .number(10))
                 XCTAssertFalse(prepared.warnings.isEmpty)
             }
+        }
+    }
+
+
+
+    func testPanelLevelSliderColorRejectsInvalidValues() {
+        withStore { _, _ in
+            let invalid: [SettingsTransferValue] = [
+                .string("custom:2,0.5,0.5,1"),
+                .string("custom:0.5,0.5,0.5"),
+                .string("white"),
+                .number(1)
+            ]
+            for value in invalid {
+                let prepared = SettingsPreferenceCatalog.prepare(["panelLevelSliderColor": value])
+                XCTAssertEqual(prepared.values["panelLevelSliderColor"], .string("automatic"))
+                XCTAssertFalse(prepared.warnings.isEmpty)
+            }
+        }
+    }
+
+    func testHardwarePanelRefreshValidatesOptionsAndRoundTrips() {
+        withStore { store, defaults in
+            XCTAssertEqual(store.hardwarePanelRefreshSeconds, 1)
+            for value in [2, 3, 4, 5, 6, 7, 8] {
+                store.hardwarePanelRefreshSeconds = value
+                XCTAssertEqual(SettingsStore(defaults: defaults).hardwarePanelRefreshSeconds, value)
+            }
+            for invalid in [0, 9, 11, -1] {
+                store.hardwarePanelRefreshSeconds = invalid
+                XCTAssertEqual(store.hardwarePanelRefreshSeconds, 1, "only shipped options are accepted")
+            }
+            store.hardwarePanelRefreshSeconds = 5
+            XCTAssertEqual(SettingsPreferenceCatalog.snapshot(store)["hardwarePanelRefreshSeconds"], .number(5))
+        }
+    }
+
+    func testHardwareBackgroundHistoryDefaultsOffAndRoundTrips() {
+        withStore { store, defaults in
+            XCTAssertFalse(store.hardwareBackgroundHistoryEnabled, "background history is off by default")
+            store.hardwareBackgroundHistoryEnabled = true
+            XCTAssertTrue(SettingsStore(defaults: defaults).hardwareBackgroundHistoryEnabled)
+            let snapshot = SettingsPreferenceCatalog.snapshot(store)
+            XCTAssertEqual(snapshot["hardwareBackgroundHistoryEnabled"], .bool(true))
+            XCTAssertNil(snapshot["hardwareBackgroundRefreshSeconds"], "the old seconds key is retired")
+            let reloaded = SettingsStore(defaults: defaults, systemChargeLimit: { nil })
+            XCTAssertTrue(reloaded.hardwareBackgroundHistoryEnabled)
+        }
+    }
+
+    func testHardwareHistoryWindowDefaultsToThreeMinutesAndRoundTrips() {
+        withStore { store, defaults in
+            XCTAssertEqual(store.hardwareHistoryWindowMinutes, 3)
+            for value in [1, 2, 4, 5] {
+                store.hardwareHistoryWindowMinutes = value
+                XCTAssertEqual(SettingsStore(defaults: defaults).hardwareHistoryWindowMinutes, value)
+            }
+            for invalid in [0, 6, -1] {
+                store.hardwareHistoryWindowMinutes = invalid
+                XCTAssertEqual(store.hardwareHistoryWindowMinutes, 3, "only 1–5 minutes are accepted")
+                XCTAssertEqual(defaults.integer(forKey: SettingsStore.hardwareHistoryWindowMinutesDefaultsKey), 3)
+            }
+            store.hardwareHistoryWindowMinutes = 5
+            XCTAssertEqual(SettingsPreferenceCatalog.snapshot(store)["hardwareHistoryWindowMinutes"], .number(5))
+        }
+    }
+
+    func testRingDisplayModesDefaultUsedAndRoundTrip() {
+        withStore { store, defaults in
+            XCTAssertEqual(store.memoryRingDisplayMode, .used)
+            XCTAssertEqual(store.ssdRingDisplayMode, .used)
+            store.memoryRingDisplayMode = .remaining
+            let reloaded = SettingsStore(defaults: defaults, systemChargeLimit: { nil })
+            XCTAssertEqual(reloaded.memoryRingDisplayMode, .remaining)
+            XCTAssertEqual(reloaded.ssdRingDisplayMode, .used)
+            let snapshot = SettingsPreferenceCatalog.snapshot(store)
+            XCTAssertEqual(snapshot["memoryRingDisplayMode"], .string("remaining"))
+            XCTAssertEqual(snapshot["ssdRingDisplayMode"], .string("used"))
+            SettingsPreferenceCatalog.apply(["ssdRingDisplayMode": .string("remaining")], to: store)
+            XCTAssertEqual(store.ssdRingDisplayMode, .remaining)
         }
     }
 
@@ -300,6 +407,7 @@ final class SettingsPreferenceCatalogTests: XCTestCase {
         XCTAssertEqual(SettingsPreferenceCatalog.prepare(valid).values, valid)
         XCTAssertTrue(SettingsPreferenceCatalog.prepare(valid).warnings.isEmpty)
         let malformed: SettingsTransferValue = .object([
+            "discharging": .string("system"),
             "charging": .string("custom:0.2,0.3,2"), "lowPower": .string("system"),
             "highPower": .string("system"), "critical": .string("system")
         ])
@@ -333,6 +441,73 @@ final class SettingsPreferenceCatalogTests: XCTestCase {
             XCTAssertEqual(store.popupSectionOrder, reversed)
             XCTAssertEqual(store.enabledPopupSections, SettingsStore.defaultEnabledPopupSections)
         }
+    }
+
+    func testDetailPresentationPreferencesRoundTrip() {
+        withStore { store, defaults in
+            XCTAssertFalse(store.showsPanelDetailsAlongside)
+            XCTAssertTrue(store.restoresPanelDetailsOnOpen)
+
+            let initial = SettingsPreferenceCatalog.snapshot(store)
+            XCTAssertEqual(initial["showsPanelDetailsAlongside"], .bool(false))
+            XCTAssertEqual(initial["returnsToSummaryOnOpen"], .bool(false))
+
+            store.showsPanelDetailsAlongside = true
+            store.restoresPanelDetailsOnOpen = false
+            XCTAssertTrue(store.returnsToSummaryOnOpen)
+            XCTAssertFalse(store.restoresPanelDetailsOnOpen)
+
+            let saved = SettingsPreferenceCatalog.snapshot(store)
+            let reopened = SettingsStore(defaults: defaults, systemChargeLimit: { nil })
+            XCTAssertTrue(reopened.showsPanelDetailsAlongside)
+            XCTAssertTrue(reopened.returnsToSummaryOnOpen)
+            XCTAssertFalse(reopened.restoresPanelDetailsOnOpen)
+
+            SettingsPreferenceCatalog.apply(saved, to: reopened)
+            XCTAssertTrue(reopened.showsPanelDetailsAlongside)
+            XCTAssertTrue(reopened.returnsToSummaryOnOpen)
+            XCTAssertFalse(reopened.restoresPanelDetailsOnOpen)
+        }
+    }
+
+    func testHoverPreferenceIsPortableAndDefaultsOff() {
+        withStore { store, defaults in
+            XCTAssertFalse(store.showsPanelOnHover)
+
+            let initial = SettingsPreferenceCatalog.snapshot(store)
+            XCTAssertEqual(initial["showsPanelOnHover"], .bool(false))
+
+            store.showsPanelOnHover = true
+            XCTAssertTrue(store.showsPanelOnHover)
+
+            let saved = SettingsPreferenceCatalog.snapshot(store)
+            let reopened = SettingsStore(defaults: defaults, systemChargeLimit: { nil })
+            XCTAssertTrue(reopened.showsPanelOnHover)
+
+            SettingsPreferenceCatalog.apply(saved, to: reopened)
+            XCTAssertTrue(reopened.showsPanelOnHover)
+
+            let invalid = SettingsPreferenceCatalog.prepare(["showsPanelOnHover": .string("yes")])
+            XCTAssertEqual(invalid.values["showsPanelOnHover"], .bool(false))
+        }
+    }
+
+    func testDetailReopenToggleInvertsLegacyPreference() {
+        withStore { store, _ in
+            XCTAssertTrue(store.restoresPanelDetailsOnOpen)
+            store.restoresPanelDetailsOnOpen = false
+            XCTAssertTrue(store.returnsToSummaryOnOpen)
+
+            store.returnsToSummaryOnOpen = false
+            XCTAssertTrue(store.restoresPanelDetailsOnOpen)
+        }
+    }
+
+    func testSideDetailsPreferenceUsesTheShippedFallbackForInvalidValues() {
+        let result = SettingsPreferenceCatalog.prepare(["showsPanelDetailsAlongside": .string("yes")])
+
+        XCTAssertEqual(result.values["showsPanelDetailsAlongside"], .bool(false))
+        XCTAssertEqual(result.warnings.count, 1)
     }
 
     private func withStore(_ body: (SettingsStore, UserDefaults) -> Void) {

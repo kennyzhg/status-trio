@@ -4,10 +4,12 @@ import SwiftUI
 /// Each row is a single inline capsule whose display name lives inside the bar
 /// (no separate title line).
 struct BrightnessControlsView: View {
+    @Environment(\.statusPanelMediumTextEnabled) private var panelMediumText
     let state: BrightnessPanelState
     let actions: StatusPanelActions
     let scrollTargets: PopoverScrollTargets
     let onOpenDisplaySettings: () -> Void
+    var fillColor: Color = .primary
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -16,7 +18,8 @@ struct BrightnessControlsView: View {
                     row: row,
                     actions: actions,
                     scrollTargets: scrollTargets,
-                    onOpenDisplaySettings: onOpenDisplaySettings
+                    onOpenDisplaySettings: onOpenDisplaySettings,
+                    fillColor: fillColor
                 )
             }
         }
@@ -24,10 +27,12 @@ struct BrightnessControlsView: View {
 }
 
 private struct BrightnessRowView: View {
+    @Environment(\.statusPanelMediumTextEnabled) private var panelMediumText
     let row: BrightnessRowState
     let actions: StatusPanelActions
     let scrollTargets: PopoverScrollTargets
     let onOpenDisplaySettings: () -> Void
+    var fillColor: Color = .primary
 
     @EnvironmentObject private var localization: Localization
 
@@ -56,6 +61,7 @@ private struct BrightnessRowView: View {
                         value: sliderBinding,
                         label: row.name,
                         isEnabled: true,
+                        tint: fillColor,
                         accessibilityLabel: row.accessibilityLabel,
                         accessibilityValue: row.percentageText,
                         onEditingChanged: { editing in
@@ -78,6 +84,7 @@ private struct BrightnessRowView: View {
                         value: sliderBinding,
                         label: row.name,
                         isEnabled: false,
+                        tint: fillColor,
                         accessibilityLabel: row.accessibilityLabel,
                         accessibilityValue: row.percentageText,
                         onEditingChanged: { _ in }
@@ -132,7 +139,7 @@ private struct BrightnessRowView: View {
                 .frame(height: PanelLevelSliderMetrics.barHeight)
             HStack(spacing: 8) {
                 Text(row.name)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 10, weight: panelMediumText ? .medium : .regular))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .foregroundStyle(.primary.opacity(0.6))

@@ -62,10 +62,12 @@ struct SettingsView: View {
     enum Section: String, CaseIterable, Identifiable {
         case appIcon
         case battery
+        case keepAwake
         case network
         case bluetooth
         case audio
         case brightness
+        case monitor
         case popover
         case general
         case about
@@ -81,10 +83,12 @@ struct SettingsView: View {
             switch self {
             case .appIcon: return .symbol("macwindow.on.rectangle")
             case .battery: return .symbol(SymbolFallback.name("battery.100percent", "battery.100"))
+            case .keepAwake: return .symbol("moon.zzz.fill")
             case .network: return .symbol("wifi")
             case .bluetooth: return .bluetoothRune
             case .audio:   return .symbol("speaker.wave.3.fill")
             case .brightness: return .symbol(SymbolFallback.name("sun.max.fill", "sun.max"))
+            case .monitor: return .symbol(SymbolFallback.name("gauge.with.dots.needle.bottom.50percent", "gauge"))
             case .popover: return .symbol("list.bullet.rectangle")
             case .general: return .symbol("gearshape.fill")
             case .about:   return .symbol("info.circle.fill")
@@ -97,10 +101,12 @@ struct SettingsView: View {
             switch self {
             case .appIcon: return .indigo
             case .battery: return .green
+            case .keepAwake: return .indigo
             case .network: return .blue
             case .bluetooth: return .blue
             case .audio:   return .cyan
             case .brightness: return .orange
+            case .monitor: return .teal
             case .popover: return .purple
             case .general: return .gray
             case .about:   return .orange
@@ -112,10 +118,12 @@ struct SettingsView: View {
             switch self {
             case .appIcon: return localization.string(.settingsTabAppIcon)
             case .battery: return localization.string(.settingsTabBattery)
+            case .keepAwake: return localization.string(.settingsPopupOrderQuickActions)
             case .network: return localization.string(.settingsTabNetwork)
             case .bluetooth: return localization.string(.settingsTabBluetooth)
             case .audio:   return localization.string(.settingsTabAudio)
             case .brightness: return localization.string(.settingsTabBrightness)
+            case .monitor: return localization.string(.settingsTabMonitor)
             case .popover: return localization.string(.settingsTabPanel)
             case .general: return localization.string(.settingsPageGeneral)
             case .about:   return localization.string(.settingsTabAbout)
@@ -173,7 +181,7 @@ struct SettingsView: View {
 
     /// Functional status categories shown in the scrollable top group.
     private static let scrollableSections: [Section] = [
-        .appIcon, .battery, .network, .bluetooth, .audio, .brightness, .popover,
+        .appIcon, .battery, .network, .bluetooth, .audio, .brightness, .keepAwake, .monitor, .popover,
     ]
 
     /// App-wide panes pinned below the divider so they stay reachable when the
@@ -446,6 +454,8 @@ struct SettingsView: View {
                 chargeToFullNow: chargeToFullNow,
                 subtopic: subtopicIfSelectionMatches(.battery)
             )
+        case .keepAwake:
+            KeepAwakeSectionView(store: store)
         case .network:
             NetworkSectionView(
                 store: store,
@@ -471,6 +481,8 @@ struct SettingsView: View {
             )
         case .brightness:
             BrightnessSectionView(store: store, statusStore: statusStore)
+        case .monitor:
+            HardwareMonitorSectionView(store: store)
         case .popover:
             PopoverSectionView(store: store, statusStore: statusStore)
         case .general:
@@ -500,7 +512,16 @@ struct SettingsView: View {
     /// Default content size the first time the window opens. Once the user has
     /// resized or moved it, the window restores its saved frame instead (#304).
     static let width: CGFloat = 720
-    static let height: CGFloat = 530
+    /// Tall enough for the full sidebar to be visible without scrolling on a
+    /// normal display. Short screens clamp to their visible area.
+    static let height: CGFloat = 600
+
+    /// First-open content size. The saved frame still wins on later launches.
+    static func defaultContentSize(for visibleFrame: NSRect?) -> NSSize {
+        guard let visibleFrame else { return NSSize(width: width, height: height) }
+        let availableHeight = max(minimumHeight, visibleFrame.height - 80)
+        return NSSize(width: width, height: min(height, availableHeight))
+    }
     /// Smallest content size the user can drag the window down to. The fixed
     /// 196pt sidebar plus the detail column's widest control (a 180pt pop-up)
     /// and one line of label copy still fit; narrow rows wrap instead of

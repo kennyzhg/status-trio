@@ -31,6 +31,19 @@ final class AnchoredStatusPanel: NSPanel {
     /// screen. Replaces `NSPopoverDelegate.popoverDidClose(_:)`.
     var onClose: (() -> Void)?
 
+    /// Consulted before Escape closes this panel. Returning `true` means the
+    /// handler consumed the key, for example to close an attached detail first.
+    var onUnhandledEscape: (() -> Bool)?
+
+    /// Called once when the panel's fade-in begins. The controller uses it to
+    /// start an attached detail's fade at the same moment, so a restored group
+    /// appears as one surface.
+    var onRevealBegin: (() -> Void)?
+
+    /// Called for a mouse-down delivered inside this panel. The controller uses
+    /// it to turn a hover-opened group into the normal click presentation.
+    var onPointerDown: (() -> Void)?
+
     /// Set for the Debug background-testing route so the panel stays visible
     /// while another application remains active. The controller owns this
     /// value and leaves it false for normal interaction.
@@ -69,10 +82,29 @@ final class AnchoredStatusPanel: NSPanel {
     private var preferredEdge: NSRectEdge = .minY
     /// Clearance reserved for an auto-hidden Dock on the anchored edge (#229).
     private var dockInset = DockReveal.noInset
+
+    /// The Dock clearance the main panel was placed with. The attached detail
+    /// window reuses the same screen budget.
+    var currentDockInset: NSEdgeInsets { dockInset }
     private var showCancellables: Set<AnyCancellable> = []
+
+    /// How the panel first appears. Click/shortcut/Dock keep the historical
+    /// short fade; the hover path (#355) uses a small drop so the panel reads as
+    /// extending out of the menu bar rather than blinking on.
+    enum RevealStyle {
+        case fade
+        /// Hover with the attached detail window visible: a slightly longer
+        /// fade, shared with the detail, so the two windows stay in step and
+        /// no frame movement can make the detail chase the summary.
+        case hoverFade
+        case hoverDrop
+    }
+
     /// Set by `show` between ordering the window in transparent and revealing it
     /// once the first layout has settled, so a size correction never flashes.
     private var pendingReveal = false
+    private var pendingRevealStyle: RevealStyle = .fade
+    private var hasNotifiedReveal = false
     /// Lock the actual selected side for this presentation. Intermediate layout
     /// heights cannot flip it; only a placement-environment change renews it.
     private var lockedResizeAnchor: StatusPanelAnchor?
@@ -107,6 +139,11 @@ final class AnchoredStatusPanel: NSPanel {
     /// measurement, the window's own resize, and a screen / Dock / Space change
     /// (issue #259). Each one is applied once, on a later main-actor turn.
     private let layoutUpdateScheduler: StatusPanelLayoutUpdateScheduler
+    /// Drives the detail page's side-window height at 120 Hz instead of the
+    /// AppKit 60 Hz animator, so page switches track the same clock as the
+    /// 120 Hz disclosure lists.
+    private let detailResizeCoordinator = StatusPanelResizeCoordinator()
+    private var detailResizeCancellable: AnyCancellable?
     private lazy var layoutCoordinator = StatusPanelLayoutCoordinator(
         scheduler: layoutUpdateScheduler,
         applyContentSize: { [weak self] size in self?.applyContentSize(size) },
@@ -118,6 +155,10 @@ final class AnchoredStatusPanel: NSPanel {
     private var invalidateContentMeasurement: (() -> Void)?
     /// The hosting controller currently installed as the panel's content.
     private weak var contentHost: NSViewController?
+
+    /// Non-nil while this panel hosts the attached detail page. The frame then
+    /// follows the side placement instead of an anchor rectangle.
+    private var detailPlacement: StatusPanelDetailPlacement.Placement?
 
     /// Whether `host` is the content currently installed.
     func isCurrentContentHost(_ host: NSViewController) -> Bool {
@@ -147,6 +188,10 @@ final class AnchoredStatusPanel: NSPanel {
         animationBehavior = .none
         isMovable = false
         isMovableByWindowBackground = false
+        detailResizeCoordinator.duration = 0.16
+        detailResizeCancellable = detailResizeCoordinator.$presentedHeight
+            .dropFirst()
+            .sink { [weak self] height in self?.applyDetailPresentedHeight(height) }
     }
 
     /// A borderless, non-activating panel is only key when it says so.
@@ -205,13 +250,21 @@ final class AnchoredStatusPanel: NSPanel {
             .applyBackgroundStyle(style)
     }
 
+    /// Rebuilds the background for a Reduce Transparency change without touching
+    /// the window or its SwiftUI content.
+    func refreshBackgroundForAccessibilityChange() {
+        (contentViewController as? StatusPanelContentViewController)?
+            .refreshBackgroundForAccessibilityChange()
+    }
+
     // MARK: - Presentation
 
     func show(
         relativeTo rect: NSRect,
         of view: NSView,
         preferredEdge: NSRectEdge,
-        dockInset: NSEdgeInsets = DockReveal.noInset
+        dockInset: NSEdgeInsets = DockReveal.noInset,
+        revealStyle: RevealStyle = .fade
     ) {
         anchorView = view
         anchorRectInView = rect
@@ -246,9 +299,63 @@ final class AnchoredStatusPanel: NSPanel {
         }
         invalidateShadow()
         pendingReveal = true
+        pendingRevealStyle = revealStyle
+        hasNotifiedReveal = false
         DispatchQueue.main.async { [weak self] in
             self?.revealAfterSettling()
         }
+    }
+
+    /// Shows this panel as the attached detail window beside the summary.
+    /// Placement comes from `StatusPanelDetailPlacement`; the window only
+    /// sizes itself to its measured content and keeps its top edge.
+    func showAsDetail(in placement: StatusPanelDetailPlacement.Placement) {
+        let wasVisible = isVisible
+        detailPlacement = placement
+        anchor = nil
+        anchorView = nil
+        anchorRectInView = .zero
+        updateLayoutMetrics()
+        installShowObservers()
+        if let content = contentViewController as? StatusPanelContentViewController {
+            _ = content.view
+            content.view.layoutSubtreeIfNeeded()
+            applyInitialContentSize()
+        }
+        alphaValue = wasVisible ? 1 : 0
+        layoutMetrics.setPresented(true)
+        if avoidsOrderFrontRegardlessForTesting {
+            orderFront(nil)
+        } else {
+            orderFrontRegardless()
+        }
+        invalidateShadow()
+    }
+
+    /// Fades the attached detail in with the same curve as the summary, so a
+    /// restored group appears as one surface instead of one window after the
+    /// other.
+    func revealDetail(duration: TimeInterval = 0.08) {
+        guard isVisible else { return }
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            alphaValue = 1
+            return
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.allowsImplicitAnimation = true
+            self.animator().alphaValue = 1
+        }
+    }
+
+    /// Hides the attached detail without running the close callback. Used when
+    /// the route changes or the setting turns the side panel off.
+    func hideDetail() {
+        guard isVisible else { return }
+        detailPlacement = nil
+        detailResizeCoordinator.cancel()
+        layoutMetrics.setPresented(false)
+        orderOut(nil)
     }
 
     /// Runs one runloop turn after `show`, lays the content out once more, applies
@@ -261,17 +368,51 @@ final class AnchoredStatusPanel: NSPanel {
             return
         }
         pendingReveal = false
+        let style = pendingRevealStyle
+        pendingRevealStyle = .fade
         contentViewController?.view.layoutSubtreeIfNeeded()
         applyInitialContentSize()
+        notifyRevealBegin()
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             alphaValue = 1
             return
         }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.08
-            context.allowsImplicitAnimation = true
-            self.animator().alphaValue = 1
+        switch style {
+        case .fade:
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.08
+                context.allowsImplicitAnimation = true
+                self.animator().alphaValue = 1
+            }
+        case .hoverFade:
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                context.allowsImplicitAnimation = true
+                self.animator().alphaValue = 1
+            }
+        case .hoverDrop:
+            // Start a few points higher, nearer the menu-bar icon, and settle
+            // down while fading in. The first frame is still fully transparent,
+            // so the offset never paints a jump.
+            let settledFrame = frame
+            var startFrame = settledFrame
+            startFrame.origin.y += 10
+            setFrame(startFrame, display: false)
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                context.allowsImplicitAnimation = true
+                self.animator().setFrame(settledFrame, display: true)
+                self.animator().alphaValue = 1
+            }
         }
+    }
+
+    private func notifyRevealBegin() {
+        guard !hasNotifiedReveal else { return }
+        hasNotifiedReveal = true
+        onRevealBegin?()
     }
 
     override func performClose(_ sender: Any?) {
@@ -283,7 +424,10 @@ final class AnchoredStatusPanel: NSPanel {
         // before they act on a close.
         guard isVisible else { return }
         layoutMetrics.setPresented(false)
+        detailPlacement = nil
+        detailResizeCoordinator.cancel()
         pendingReveal = false
+        pendingRevealStyle = .fade
         lockedResizeAnchor = nil
         lockedResizeFrame = nil
         lockedResizeEdge = nil
@@ -294,8 +438,16 @@ final class AnchoredStatusPanel: NSPanel {
         onClose?()
     }
 
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown {
+            onPointerDown?()
+        }
+        super.sendEvent(event)
+    }
+
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
+            if onUnhandledEscape?() == true { return }
             performClose(nil)
             return
         }
@@ -303,6 +455,7 @@ final class AnchoredStatusPanel: NSPanel {
     }
 
     override func cancelOperation(_ sender: Any?) {
+        if onUnhandledEscape?() == true { return }
         performClose(nil)
     }
 
@@ -336,7 +489,7 @@ final class AnchoredStatusPanel: NSPanel {
         // Content already presents its intermediate disclosure height. Starting
         // another window animation here would put layout and chrome on different
         // clocks. Apply only the latest coalesced measurement, once per pixel.
-        if isVisible, !pendingReveal, lockedResizeFrame == nil {
+        if detailPlacement == nil, isVisible, !pendingReveal, lockedResizeFrame == nil {
             lockResizePlacement()
         }
         let capped = cappedContentSize(contentSize)
@@ -345,11 +498,37 @@ final class AnchoredStatusPanel: NSPanel {
                           height: ceil(capped.height * scale) / scale)
         let target = placementFrame(for: size)
         guard target != frame else { return }
-        setFrame(target, display: false)
+        if detailPlacement != nil, isVisible {
+            // A page switch changes the side window's height. Drive it from the
+            // 120 Hz coordinator so the glass tracks the display instead of the
+            // AppKit animator's 60 Hz clock; contents still snap to their final
+            // layout and only the frame eases.
+            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                detailResizeCoordinator.cancel()
+                setFrame(target, display: false)
+                invalidateShadow()
+            } else {
+                detailResizeCoordinator.retarget(to: size.height, fromHeight: frame.height)
+            }
+        } else {
+            setFrame(target, display: false)
+        }
 #if DEBUG
         frameWriteCount += 1
 #endif
         invalidateShadow()
+    }
+
+    /// Applies one 120 Hz tick of the detail height animation. Only the window
+    /// frame moves; the SwiftUI content is already at its final height.
+    private func applyDetailPresentedHeight(_ height: CGFloat) {
+        guard detailPlacement != nil, isVisible else { return }
+        let target = placementFrame(for: NSSize(width: frame.width, height: height))
+        guard target != frame else { return }
+        setFrame(target, display: false)
+        if detailResizeCoordinator.isAtTarget(height) {
+            invalidateShadow()
+        }
     }
 
     /// The placed frame for a presented height during an animated resize. The
@@ -440,7 +619,7 @@ final class AnchoredStatusPanel: NSPanel {
     }
 
     private func handleWindowResize() {
-        guard isVisible, lockedResizeFrame == nil else { return }
+        guard isVisible, lockedResizeFrame == nil, !detailResizeCoordinator.isAnimating else { return }
         layoutCoordinator.windowDidResize()
     }
 
@@ -488,7 +667,20 @@ final class AnchoredStatusPanel: NSPanel {
     /// is scrolling inside the capped window. Capping belongs here, at the
     /// window, so a short page can still be shorter than the budget and hug
     /// its content instead of growing to the cap.
+    ///
+    /// A Dock-presented detail is the exception: it reads as the second column
+    /// of the summary, so it fills exactly the summary's height instead of
+    /// hugging shorter content (which left it visibly short of the main panel).
+    /// A menu bar detail keeps hugging its content and may grow past the
+    /// summary up to the screen budget. The scroll area fills the window and
+    /// top-aligns the page.
     private func cappedContentSize(_ size: NSSize) -> NSSize {
+        if let detailPlacement {
+            let height = detailPlacement.limitsToSummaryHeight
+                ? detailPlacement.maximumHeight
+                : min(size.height, detailPlacement.maximumHeight)
+            return NSSize(width: size.width, height: height)
+        }
         guard let maximumHeight = layoutMetrics.maximumPanelHeight else { return size }
         return NSSize(width: size.width, height: min(size.height, maximumHeight))
     }
@@ -501,6 +693,10 @@ final class AnchoredStatusPanel: NSPanel {
     /// a resize notification triggered by our own `setFrame` cannot start a
     /// layout/publish loop.
     private func updateLayoutMetrics() {
+        if let detailPlacement {
+            layoutMetrics.update(maximumPanelHeight: max(1, detailPlacement.maximumHeight))
+            return
+        }
         guard let currentAnchor = currentAnchor() else { return }
         layoutMetrics.update(
             maximumPanelHeight: StatusPanelPlacement.maximumPanelHeight(
@@ -512,6 +708,15 @@ final class AnchoredStatusPanel: NSPanel {
     }
 
     private func placementFrame(for contentSize: NSSize) -> NSRect {
+        if let detailPlacement {
+            let height = min(contentSize.height, detailPlacement.maximumHeight)
+            return NSRect(
+                x: detailPlacement.frame.minX,
+                y: detailPlacement.frame.maxY - height,
+                width: contentSize.width,
+                height: height
+            )
+        }
         if let locked = lockedResizeFrame, locked.width == contentSize.width {
             return placementFrameForPresentedHeight(contentSize.height)
         }
@@ -794,6 +999,9 @@ final class StatusPanelContentViewController: NSViewController {
     /// has Reduce Transparency turned on.
     private let isReduceTransparencyEnabled: () -> Bool
     private var backgroundView: NSView?
+    /// The style actually installed last, so a Reduce Transparency toggle only
+    /// rebuilds the background when the effective style really changed.
+    private var installedEffectiveStyle: PanelBackgroundStyle?
 
     init(
         hostingController: NSViewController,
@@ -836,6 +1044,15 @@ final class StatusPanelContentViewController: NSViewController {
         installBackground(in: view)
     }
 
+    /// Rebuilds the background when the effective style changes because the user
+    /// toggled Reduce Transparency. Driven by the same system notification as the
+    /// SwiftUI card layer so the window and its content never disagree.
+    func refreshBackgroundForAccessibilityChange() {
+        guard isViewLoaded else { return }
+        guard effectiveBackgroundStyle != installedEffectiveStyle else { return }
+        installBackground(in: view)
+    }
+
     /// Reduce Transparency keeps the panel opaque for accessibility; it wins
     /// over the user's choice and forces the solid fill.
     private var effectiveBackgroundStyle: PanelBackgroundStyle {
@@ -846,6 +1063,7 @@ final class StatusPanelContentViewController: NSViewController {
     }
 
     private func installBackground(in container: NSView) {
+        installedEffectiveStyle = effectiveBackgroundStyle
         backgroundView?.removeFromSuperview()
         backgroundView = nil
         hostingController.view.removeFromSuperview()

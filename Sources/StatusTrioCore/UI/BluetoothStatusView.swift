@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum BluetoothSummaryAction: CaseIterable, Equatable {
@@ -49,6 +50,7 @@ enum BluetoothSummaryActionAvailability {
 /// here instead: the refresh button beside the gear, and the one-line report of
 /// a level read that failed.
 struct BluetoothStatusView: View {
+    @Environment(\.statusPanelBoldTextEnabled) private var panelBoldText
     @ObservedObject var controller: BluetoothDeviceController
     @ObservedObject var radioPower: BluetoothRadioPowerController
     @ObservedObject var mobileBatteryController: MobileBatteryController
@@ -500,15 +502,21 @@ struct BluetoothStatusView: View {
     private var titleContent: some View {
         HStack(spacing: BluetoothPanelMetrics.iconTextSpacing) {
             BluetoothIcon(size: BluetoothPanelMetrics.iconColumnWidth)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(titleIconColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(localization.string(.bluetoothTitle))
-                    .font(.headline)
+                    .font(.headline.weight(panelBoldText ? .semibold : .regular))
                 subtitle
             }
             Spacer()
         }
         .contentShape(Rectangle())
+    }
+
+    /// The title glyph follows the Wi-Fi row's tint (#352): system ink while
+    /// the radio is on, secondary ink when it is off or its state is unknown.
+    private var titleIconColor: Color {
+        BluetoothTitleTintResolver.tint(for: radioPower.power).color()
     }
 
     private func perform(_ action: BluetoothSummaryRowAction) {

@@ -3,6 +3,7 @@ import SwiftUI
 /// A static flow diagram: sampling changes the numbers and ribbon widths, with
 /// no animation clock, Canvas loop, or work while the panel is closed.
 struct BatteryPowerFlowView: View {
+    @Environment(\.statusPanelBoldTextEnabled) private var panelBoldText
     @Environment(\.colorScheme) private var colorScheme
     let state: BatteryPowerFlowState
 
@@ -179,9 +180,11 @@ struct BatteryPowerFlowView: View {
                     // not a bare `.primary` shape style: the leading-dot form
                     // resolves to the hierarchical foreground, follows the vibrant
                     // detail-page text and nearly vanishes over the glass.
-                    .powerFlowCardSurface(
-                        fill: inputSurface.fill(tint: inputColor, scheme: colorScheme),
-                        stroke: inputSurface.stroke(tint: inputColor, scheme: colorScheme)
+                    .panelCardSurface(
+                        inputSurface,
+                        tint: inputColor,
+                        cornerRadius: 12,
+                        cornerStyle: .circular
                     )
                     .position(x: destinations.isEmpty ? width / 2 : 31, y: center)
             }
@@ -193,9 +196,11 @@ struct BatteryPowerFlowView: View {
                        iconSize: !showsLabel(index) && rowHeight(index) <= Self.denseRow
                            ? 10 : Self.iconSize(for: item.kind))
                     .frame(width: state.input == nil ? width : 94)
-                    .powerFlowCardSurface(
-                        fill: Self.color(for: item.kind).opacity(Self.cardFill),
-                        stroke: Self.color(for: item.kind).opacity(Self.cardStroke)
+                    .panelCardSurface(
+                        .tint(fillOpacity: Self.cardFill, strokeOpacity: Self.cardStroke),
+                        tint: Self.color(for: item.kind),
+                        cornerRadius: 12,
+                        cornerStyle: .circular
                     )
                     .position(x: state.input == nil ? width / 2 : width - 47, y: centerY(index))
             }
@@ -270,7 +275,7 @@ struct BatteryPowerFlowView: View {
                         .frame(width: 20)
                         .accessibilityHidden(true)
                     Text(value.value)
-                        .font(.system(size: dense ? 10 : 11, weight: .semibold, design: .rounded))
+                        .font(.system(size: dense ? 10 : 11, weight: panelBoldText ? .semibold : .regular, design: .rounded))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -285,7 +290,7 @@ struct BatteryPowerFlowView: View {
                             .frame(width: 20)
                             .accessibilityHidden(true)
                         Text(value.value)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(size: 13, weight: panelBoldText ? .semibold : .regular, design: .rounded))
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -308,7 +313,7 @@ struct BatteryPowerFlowView: View {
                         .font(.system(size: 16, weight: .medium))
                         .accessibilityHidden(true)
                     Text(value.value)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.system(size: 13, weight: panelBoldText ? .semibold : .regular, design: .rounded))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)

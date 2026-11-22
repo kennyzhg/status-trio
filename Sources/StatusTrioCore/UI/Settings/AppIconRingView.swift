@@ -1,6 +1,40 @@
 import AppKit
 import SwiftUI
 
+/// Top-marker choices exposed in the settings pane: a numeric reading, a
+/// charging indicator, or hidden.
+/// The icon/symbol mode was removed because the detailed glyphs were unreadable
+/// at menu-bar size; legacy `.automatic`/`.symbol` configurations migrate to a
+/// value in `HardwareRingConfiguration.migratingLegacyTopIcon()`.
+private enum HardwareTopMode: String, CaseIterable, Identifiable {
+    case value
+    case chargingIndicator
+    case hidden
+    var id: Self { self }
+}
+
+/// A choice inside the top-marker "metric value" menu. Battery level is not a
+/// hardware metric, so it rides this top-marker-only reading (and maps to the
+/// `batteryPercentage` top content) instead of a hardware metric case.
+private enum HardwareTopReading: Hashable, Identifiable {
+    case metric(HardwareMonitorMetric)
+    case batteryLevel
+
+    var id: String {
+        switch self {
+        case let .metric(metric): return metric.rawValue
+        case .batteryLevel: return "batteryLevel"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case let .metric(metric): return metric.systemImage
+        case .batteryLevel: return "battery.100"
+        }
+    }
+}
+
 /// The "Ring" leaf under **App Icon**: how the battery arc / ring is drawn.
 ///
 /// These controls used to sit in the Battery category, but they only describe
@@ -12,6 +46,10 @@ struct AppIconRingView: View {
     /// Whether the Mac actually has a battery. A desktop (e.g. Mac mini) has no
     /// real level, so the ring controls collapse to a decorative top marker.
     var hasBattery: Bool = true
+    /// Omitted on the dedicated "Ring" page, where the page title already names
+    /// the section (like the middle-icon group); kept when the ring group sits
+    /// among the other icon groups.
+    var showsRingContentTitle: Bool = true
     @EnvironmentObject private var localization: Localization
 
     /// The battery presence this page draws with. In a development build the
@@ -22,169 +60,697 @@ struct AppIconRingView: View {
     }
 
     var body: some View {
-        if store.isDevelopmentBuild {
-            noBatterySimulationGroup
-        }
         if !effectiveHasBattery {
             noBatteryHintGroup
         }
-        // #309: every ring control stays visible without a battery. The settings
-        // are kept; the ring colour still follows connected power and Low/High
-        // Power Mode, while the level and charging marker do not apply. The hint
-        // above says so.
-        topMarkersGroup
-        progressGroup
-        colorsGroup
-        effectsGroup
+        outerRingContentGroup
+        LocalIconPluginSlotPicker(slot: .outerRing, store: store)
+        LocalIconPluginPackageSettings(store: store)
+        if store.outerRingContent == .airPodsBattery {
+            airPodsTopMarkerGroup
+            airPodsArcGroup
+            airPodsFallbackGroup
+        } else if store.outerRingContent == .hardwareMonitor {
+            hardwareRingGroups
+        } else {
+            // #309: every battery ring control stays visible without a battery.
+            // The settings are kept; the ring colour still follows connected
+            // power and Low/High Power Mode, while the level and charging marker
+            // do not apply. The hint above says so.
+            // Unified order: top marker → progress → colours → animations.
+            batteryTopMarkerGroup
+            progressGroup
+            colorsGroup
+            effectsGroup
+        }
     }
 
-    // MARK: Developer preview
+    // MARK: Outer ring content
 
-    /// Developer-only helper: force the battery-less look so a Mac with a
-    /// battery can preview this page without one. A packaged release never shows
-    /// this and never simulates.
-    private var noBatterySimulationGroup: some View {
-        SettingsGroup(localization.string(.settingsBatteryDeveloperPreview)) {
-            SettingsToggleRow(
-                symbol: "eyeglasses",
-                tint: .gray,
-                title: localization.string(.settingsBatterySimulateNoBattery),
-                subtitle: localization.string(.settingsBatterySimulateNoBatteryDescription),
-                isOn: $store.simulatesNoBattery
+    /// Chooses what the ring shows: the Mac battery (with all the existing
+    /// battery options below it) or the AirPods battery. Uses the same shared
+    /// picture-card picker as the middle-icon source chooser so the two rows
+    /// share one layout and interaction contract.
+    ///
+    /// The top-marker options belong to the Mac battery source, so they sit in
+    /// the same card as the picker (like the middle-icon source picker owns its
+    /// sub-options) and only appear while the Mac battery is selected.
+    private var outerRingContentGroup: some View {
+        // The subtopic already names this page, so the dedicated ring page drops
+        // the extra group heading (matching the middle-icon page); the full App
+        // Icon overview keeps it so the section stays labelled among the others.
+        SettingsGroup(
+            showsRingContentTitle ? localization.string(.settingsRingContentGroupTitle) : nil
+        ) {
+            SettingsVisualChoicePicker(
+                descriptionText: localization.string(.settingsRingContentRowDescription),
+                choicesAccessibilityLabel: localization.string(.settingsRingContentRowTitle),
+                accessibilityIdentifier: "appIcon.outerRingContent",
+                selection: $store.outerRingContent,
+                options: OuterRingContent.allCases,
+                caption: { ringContentLabel($0) },
+                preview: { OuterRingContentPreview(content: $0, store: store) }
             )
+
+            if store.outerRingContent == .systemBattery, store.isDevelopmentBuild {
+                // Developer-only helper: force the battery-less look so a Mac
+                // with a battery can preview this page without one. It lives in
+                // the Mac battery card and a packaged release never shows it.
+                SettingsDivider(inset: SettingsMetrics.rowPaddingH)
+                SettingsToggleRow(
+                    symbol: "eyeglasses",
+                    tint: .gray,
+                    title: localization.string(.settingsBatterySimulateNoBattery),
+                    subtitle: localization.string(.settingsBatterySimulateNoBatteryDescription),
+                    isOn: $store.simulatesNoBattery
+                )
+            }
+        }
+    }
+
+    /// Mac battery top-marker card. Pulled out of the picker card so every
+    /// source starts with the same「顶部标识」group; the shared size row is the
+    /// first row, then the per-power-state marker choices.
+    private var batteryTopMarkerGroup: some View {
+        SettingsGroup(localization.string(.settingsTopMarkerGroup)) {
+            if store.isBatterySymbolSizeEnabled {
+                topMarkerSizeRow
+                SettingsDivider()
+            }
+            BatteryTopMarkersGroup(
+                store: store,
+                hasBattery: effectiveHasBattery,
+                embedsInGroup: false
+            )
+        }
+    }
+
+    private func ringContentLabel(_ content: OuterRingContent) -> String {
+        switch content {
+        case .systemBattery: return localization.string(.settingsRingContentSystemBattery)
+        case .airPodsBattery: return localization.string(.settingsRingContentAirPodsBattery)
+        case .hardwareMonitor: return localization.string(.settingsRingContentHardwareMonitor)
+        }
+    }
+
+    /// AirPods-ring options: two-arc layout, the small top glyph, and whether an
+    /// unavailable AirPods ring falls back to the Mac battery ring.
+    /// AirPods top-marker card: shared size row first, then the AirPods glyph
+    /// toggle. Split out of the old single AirPods card so this source also
+    /// starts with a「顶部标识」group.
+    private var airPodsTopMarkerGroup: some View {
+        SettingsGroup(localization.string(.settingsTopMarkerGroup)) {
+            if store.showsAirPodsTopSymbolInRing {
+                topMarkerSizeRow
+                SettingsDivider()
+            }
+            SettingsToggleRow(
+                symbol: "airpods",
+                tint: .blue,
+                title: localization.string(.settingsRingAirPodsTopSymbol),
+                subtitle: localization.string(.settingsRingAirPodsTopSymbolDescription),
+                isOn: $store.showsAirPodsTopSymbolInRing
+            )
+        }
+    }
+
+    /// AirPods arc layout (single vs left/right dual).
+    private var airPodsArcGroup: some View {
+        SettingsGroup(localization.string(.settingsHardwareRingGroupArc)) {
+            SettingsToggleRow(
+                symbol: "airpods",
+                tint: .blue,
+                title: localization.string(.settingsRingAirPodsDualRing),
+                subtitle: localization.string(.settingsRingAirPodsDualRingDescription),
+                isOn: $store.airPodsRingUsesDualRing
+            )
+        }
+    }
+
+    /// Fallback when no AirPods are connected / readable: the Mac battery ring,
+    /// the custom system-monitoring ring, or nothing.
+    private var airPodsFallbackGroup: some View {
+        SettingsGroup {
+            SettingsMenuRow(
+                symbol: "arrow.uturn.backward",
+                tint: .green,
+                title: localization.string(.settingsRingAirPodsFallback),
+                subtitle: localization.string(.settingsRingAirPodsFallbackDescription),
+                selection: $store.airPodsRingFallback,
+                options: AirPodsRingFallback.allCases,
+                label: { fallbackLabel($0) }
+            )
+        }
+    }
+
+    private func fallbackLabel(_ fallback: AirPodsRingFallback) -> String {
+        switch fallback {
+        case .battery: return localization.string(.settingsRingAirPodsFallbackBattery)
+        case .hardwareMonitor: return localization.string(.settingsRingAirPodsFallbackCustom)
+        }
+    }
+
+    // MARK: System monitoring (hardware ring)
+
+    /// Internal settings for the `hardwareMonitor` source: arc layout, metrics,
+    /// top marker, colour strategy and per-metric thresholds. These are grouped
+    /// exactly like the other icon pickers — no bespoke control style is
+    /// introduced; they reuse `SettingsGroup` / `SettingsMenuRow` / `SettingsRow`.
+    @ViewBuilder
+    private var hardwareRingGroups: some View {
+        hardwareTopGroup
+        hardwareArcGroup
+        hardwareColorGroup
+        hardwareAdvancedGroup
+    }
+
+    private var hardwareSecondaryMetric: HardwareMonitorMetric {
+        // Use the same effective configuration as the rendered icon: when a
+        // temperature selection is unavailable, replacing it can create a
+        // duplicate of the primary metric and normalize to the next distinct
+        // metric (GPU usage). Showing the pre-normalization value here made the
+        // settings row disagree with the rendered arc.
+        let configuration = store.hardwareTemperatureMonitoringEnabled
+            ? store.hardwareRingConfiguration
+            : store.hardwareRingConfiguration.replacingUnavailableTemperatures()
+        return configuration.normalizedSecondaryMetric ?? .gpuUsage
+    }
+
+    /// When temperature monitoring is off the stored selection is preserved,
+    /// but the picker shows the usage metric it currently falls back to so the
+    /// filtered option list never leaves a blank control.
+    private func effectiveRingMetric(_ metric: HardwareMonitorMetric) -> HardwareMonitorMetric {
+        guard !store.hardwareTemperatureMonitoringEnabled else { return metric }
+        switch metric {
+        case .cpuTemperature: return .cpuUsage
+        case .gpuTemperature: return .gpuUsage
+        default: return metric
+        }
+    }
+
+    private var hardwareArcGroup: some View {
+        SettingsGroup(localization.string(.settingsHardwareRingGroupArc)) {
+            SettingsMenuRow(
+                symbol: "circle.dashed",
+                tint: .blue,
+                title: localization.string(.settingsHardwareRingLayout),
+                selection: Binding(
+                    get: { store.hardwareRingConfiguration.layout },
+                    set: { setHardwareLayout($0) }
+                ),
+                options: HardwareRingLayout.allCases,
+                label: { layoutLabel($0) }
+            )
+            SettingsDivider()
+            SettingsGroupedMenuRow(
+                symbol: effectiveRingMetric(store.hardwareRingConfiguration.primaryMetric).systemImage,
+                tint: .green,
+                title: localization.string(.settingsHardwareRingPrimaryMetric),
+                selection: Binding(
+                    get: { effectiveRingMetric(store.hardwareRingConfiguration.primaryMetric) },
+                    set: { setPrimaryMetric($0) }
+                ),
+                groups: hardwareRingMetricGroups,
+                label: { metricLabel($0) }
+            )
+            if store.hardwareRingConfiguration.layout == .dual {
+                SettingsDivider()
+                SettingsGroupedMenuRow(
+                    symbol: hardwareSecondaryMetric.systemImage,
+                    tint: .blue,
+                    title: localization.string(.settingsHardwareRingSecondaryMetric),
+                    selection: Binding(
+                        get: { hardwareSecondaryMetric },
+                        set: { setSecondaryMetric($0) }
+                    ),
+                    groups: hardwareRingMetricGroups,
+                    label: { metricLabel($0) }
+                )
+            }
+        }
+    }
+
+    private var hardwareTopGroup: some View {
+        SettingsGroup(localization.string(.settingsTopMarkerGroup)) {
+            if hardwareTopMode != .hidden {
+                topMarkerSizeRow
+                SettingsDivider()
+            }
+            SettingsMenuRow(
+                symbol: "textformat",
+                tint: .gray,
+                title: localization.string(.settingsHardwareRingTopContent),
+                selection: Binding(
+                    get: { hardwareTopMode },
+                    set: { setTopMode($0) }
+                ),
+                options: HardwareTopMode.allCases,
+                label: { topModeLabel($0) }
+            )
+            if hardwareTopMode == .chargingIndicator {
+                // #361: the charging marker is the battery page's per-state top
+                // marker, not a separate style — point the user there.
+                SettingsDivider()
+                SettingsHintRow(
+                    text: localization.string(.settingsHardwareRingTopChargingIndicatorHint)
+                )
+            }
+            if hardwareTopMode == .value {
+                SettingsDivider()
+                SettingsGroupedMenuRow(
+                    symbol: hardwareTopReading.systemImage,
+                    tint: .gray,
+                    title: localization.string(.settingsHardwareRingTopMetric),
+                    selection: Binding(
+                        get: { hardwareTopReading },
+                        set: { setTopReading($0) }
+                    ),
+                    groups: hardwareTopMetricGroups,
+                    label: { topReadingLabel($0) }
+                )
+            }
+        }
+    }
+
+    /// One shared "top marker size" standard: the same value drives the Mac
+    /// battery percentage/bolt, the AirPods top symbol and the hardware top
+    /// marker. Shown wherever a top marker can be configured, editing any of
+    /// them writes this single setting.
+    private var topMarkerSizeRow: some View {
+        SettingsRow(
+            title: localization.string(.settingsTopMarkerScale),
+            subtitle: localization.string(.settingsTopMarkerScaleDescription),
+            leading: { SettingsIcon(symbol: "arrow.up.left.and.arrow.down.right", tint: .gray) },
+            trailing: {
+                HStack(spacing: 8) {
+                    Slider(
+                        value: Binding(
+                            get: { store.batterySymbolScale },
+                            set: { store.setBatterySymbolScaleFromSlider(($0 * 20).rounded() / 20) }
+                        ),
+                        in: SettingsStore.batterySymbolScaleRange
+                    )
+                    .frame(width: 130)
+                    .controlSize(.small)
+                    .accessibilityLabel(localization.string(.settingsTopMarkerScale))
+                    .accessibilityValue("\(Int(store.batterySymbolScale * 100))%")
+                    Text("\(Int(store.batterySymbolScale * 100))%")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .trailing)
+                }
+            }
+        )
+    }
+
+    private var hardwareColorGroup: some View {
+        SettingsGroup(localization.string(.settingsHardwareRingGroupColor)) {
+            SettingsToggleRow(
+                symbol: "circle.lefthalf.filled",
+                tint: .purple,
+                title: localization.string(.settingsHardwareRingMonochrome),
+                subtitle: localization.string(.settingsHardwareRingMonochromeDescription),
+                isOn: Binding(
+                    get: { store.hardwareRingConfiguration.color.monochrome },
+                    set: { setColorMonochrome($0) }
+                )
+            )
+            SettingsDivider()
+            SettingsToggleRow(
+                symbol: "exclamationmark.triangle",
+                tint: .orange,
+                title: localization.string(.settingsHardwareRingThresholdColors),
+                subtitle: localization.string(.settingsHardwareRingThresholdColorsDescription),
+                isOn: Binding(
+                    get: { store.hardwareRingConfiguration.color.thresholdColors },
+                    set: { setColorThresholdColors($0) }
+                )
+            )
+            .disabled(store.hardwareRingConfiguration.color.monochrome)
+            if !store.hardwareRingConfiguration.color.monochrome {
+                SettingsDivider()
+                hardwareColorRowOrHint(
+                    title: .settingsHardwareRingLeftColor,
+                    metric: store.hardwareRingConfiguration.primaryMetric
+                )
+                if store.hardwareRingConfiguration.layout == .dual {
+                    SettingsDivider()
+                    hardwareColorRowOrHint(
+                        title: .settingsHardwareRingRightColor,
+                        metric: hardwareSecondaryMetric
+                    )
+                }
+            }
+        }
+    }
+
+    private var hardwareAdvancedGroup: some View {
+        SettingsGroup(localization.string(.settingsHardwareRingGroupAdvanced)) {
+            ForEach(Array(store.hardwareRingConfiguration.referencedMetrics.filter { !$0.usesStatusSnapshot }.enumerated()), id: \.element) { index, metric in
+                if index > 0 { SettingsDivider() }
+                hardwareAdvancedRow(for: metric)
+            }
+            SettingsDivider()
+            SettingsRow(
+                title: localization.string(.settingsHardwareRingReset),
+                subtitle: nil,
+                leading: { SettingsIcon(symbol: "arrow.counterclockwise", tint: .gray) },
+                trailing: {
+                    Button(localization.string(.settingsHardwareRingReset)) {
+                        resetHardwareMetricOptions()
+                    }
+                    .controlSize(.small)
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func hardwareAdvancedRow(for metric: HardwareMonitorMetric) -> some View {
+        if metric.isSpeedMetric {
+            SettingsRow(
+                title: metricLabel(metric),
+                subtitle: localization.string(.hardwareMonitorSpeedCapDescription),
+                leading: { SettingsIcon(symbol: metric.systemImage, tint: .orange) },
+                trailing: {
+                    HardwareCapField(value: speedCapBinding(metric),
+                                     range: SettingsStore.hardwareSpeedCapRange)
+                }
+            )
+        } else {
+        let options = store.hardwareRingConfiguration.options(for: metric)
+        // Threshold colours are only used when the ring is coloured and the
+        // "threshold colours" switch is on; otherwise the steppers are inert.
+        let thresholdsEnabled = !store.hardwareRingConfiguration.color.monochrome
+            && store.hardwareRingConfiguration.color.thresholdColors
+        SettingsRow(
+            title: metricLabel(metric),
+            subtitle: hardwareRangeSubtitle(metric: metric, options: options),
+            leading: { SettingsIcon(symbol: metric.systemImage, tint: .orange) },
+            trailing: {
+                VStack(alignment: .trailing, spacing: 6) {
+                    hardwareStepper(
+                        label: localization.string(.settingsHardwareRingWarning),
+                        value: hardwareOptionBinding(metric, \HardwareMetricRingOptions.warningThreshold),
+                        range: hardwareStepperRange(metric),
+                        step: metric == .fan ? 100 : 1
+                    )
+                    .disabled(!thresholdsEnabled)
+                    hardwareStepper(
+                        label: localization.string(.settingsHardwareRingCritical),
+                        value: hardwareOptionBinding(metric, \HardwareMetricRingOptions.criticalThreshold),
+                        range: hardwareStepperRange(metric),
+                        step: metric == .fan ? 100 : 1
+                    )
+                    .disabled(!thresholdsEnabled)
+                    if !metric.isPercentageMetric && metric != .fan {
+                        hardwareStepper(
+                            label: "\(localization.string(.settingsHardwareRingRange)) ↓",
+                            value: hardwareOptionBinding(metric, \HardwareMetricRingOptions.displayMinimum),
+                            range: -50...150,
+                            step: 1
+                        )
+                        hardwareStepper(
+                            label: "\(localization.string(.settingsHardwareRingRange)) ↑",
+                            value: hardwareOptionBinding(metric, \HardwareMetricRingOptions.displayMaximum),
+                            range: -50...150,
+                            step: 1
+                        )
+                    }
+                }
+            }
+        )
+        }
+    }
+
+    private func speedCapBinding(_ metric: HardwareMonitorMetric) -> Binding<Double> {
+        metric == .downloadSpeed
+            ? Binding(get: { store.hardwareDownloadCapMbps },
+                      set: { store.hardwareDownloadCapMbps = ($0).rounded() })
+            : Binding(get: { store.hardwareUploadCapMbps },
+                      set: { store.hardwareUploadCapMbps = ($0).rounded() })
+    }
+
+    private func hardwareStepper(
+        label: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double
+    ) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Stepper(value: value, in: range, step: step) {
+                Text("\(Int(value.wrappedValue.rounded()))")
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .controlSize(.small)
+        }
+    }
+
+    /// Battery arcs follow the system-battery ring's status colour, so their
+    /// colour is edited there; show a hint instead of a (now inert) colour well.
+    @ViewBuilder
+    private func hardwareColorRowOrHint(
+        title: LocalizationKey,
+        metric: HardwareMonitorMetric
+    ) -> some View {
+        if metric == .batteryLevel {
+            SettingsRow(
+                title: localization.string(title),
+                subtitle: localization.string(.settingsHardwareRingBatteryColorHint),
+                leading: { SettingsIcon(symbol: metric.systemImage, tint: .green) },
+                trailing: { EmptyView() }
+            )
+        } else {
+            hardwareColorRow(title: title, metric: metric)
+        }
+    }
+
+    private func hardwareColorRow(
+        title: LocalizationKey,
+        metric: HardwareMonitorMetric
+    ) -> some View {
+        SettingsRow(
+            title: localization.string(title),
+            subtitle: metricLabel(metric),
+            leading: { SettingsIcon(symbol: metric.systemImage, tint: .purple) },
+            trailing: {
+                IconDesignerColorWell(
+                    selection: hardwareColorBinding(metric: metric),
+                    onEditingChanged: { _ in }
+                )
+                .frame(width: 44, height: 22)
+            }
+        )
+    }
+
+    // MARK: Hardware ring bindings & labels
+
+    private var hardwareTopMode: HardwareTopMode {
+        switch store.hardwareRingConfiguration.topContent {
+        case .hidden: return .hidden
+        case .chargingIndicator: return .chargingIndicator
+        case .value, .batteryPercentage, .automatic, .symbol: return .value
+        }
+    }
+
+    /// The current top-marker reading shown in the "metric value" menu. Battery
+    /// level is presented alongside the hardware metrics, so an existing
+    /// `.batteryPercentage` content surfaces as `.batteryLevel`.
+    private var hardwareTopReading: HardwareTopReading {
+        switch store.hardwareRingConfiguration.topContent {
+        case .batteryPercentage: return .batteryLevel
+        case let .value(metric), let .symbol(metric): return .metric(effectiveRingMetric(metric))
+        case .automatic, .hidden, .chargingIndicator:
+            return .metric(effectiveRingMetric(store.hardwareRingConfiguration.primaryMetric))
+        }
+    }
+
+    /// The concrete hardware metric a top-marker value currently uses, defaulting
+    /// to the primary metric (also used when switching back into value mode).
+    private var hardwareTopMetric: HardwareMonitorMetric {
+        if case let .metric(metric) = hardwareTopReading { return metric }
+        return store.hardwareRingConfiguration.primaryMetric
+    }
+
+    private func setHardwareLayout(_ layout: HardwareRingLayout) {
+        var configuration = store.hardwareRingConfiguration
+        configuration.layout = layout
+        if layout == .dual, configuration.secondaryMetric == nil {
+            configuration.secondaryMetric = HardwareRingConfiguration.default.secondaryMetric
+        }
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func setPrimaryMetric(_ metric: HardwareMonitorMetric) {
+        var configuration = store.hardwareRingConfiguration
+        if configuration.secondaryMetric == metric {
+            configuration.secondaryMetric = configuration.primaryMetric
+        }
+        configuration.primaryMetric = metric
+        if configuration.layout == .single { configuration.secondaryMetric = nil }
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func setSecondaryMetric(_ metric: HardwareMonitorMetric) {
+        var configuration = store.hardwareRingConfiguration
+        if metric == configuration.primaryMetric {
+            configuration.primaryMetric = configuration.normalizedSecondaryMetric ?? .gpuUsage
+        }
+        configuration.secondaryMetric = metric
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func setTopMode(_ mode: HardwareTopMode) {
+        var configuration = store.hardwareRingConfiguration
+        switch mode {
+        case .hidden: configuration.topContent = .hidden
+        case .value: configuration.topContent = .value(hardwareTopMetric)
+        case .chargingIndicator: configuration.topContent = .chargingIndicator
+        }
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func setTopReading(_ reading: HardwareTopReading) {
+        var configuration = store.hardwareRingConfiguration
+        switch reading {
+        case .batteryLevel: configuration.topContent = .batteryPercentage
+        case let .metric(metric): configuration.topContent = .value(metric)
+        }
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func setColorMonochrome(_ on: Bool) {
+        var configuration = store.hardwareRingConfiguration
+        configuration.color.monochrome = on
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func setColorThresholdColors(_ on: Bool) {
+        var configuration = store.hardwareRingConfiguration
+        configuration.color.thresholdColors = on
+        store.hardwareRingConfiguration = configuration
+    }
+
+    /// Shared per-metric colour: the same field the status-panel bar uses and the
+    /// monitor tab edits. Switching the side's metric switches which colour this
+    /// well shows and writes.
+    private func hardwareColorBinding(metric: HardwareMonitorMetric) -> Binding<Color> {
+        Binding(
+            get: { IconAppearanceColorConversion.color(from: store.hardwareColor(for: metric)) },
+            set: { color in
+                store.setHardwareColor(IconAppearanceColorConversion.iconRGBA(from: color), for: metric)
+            }
+        )
+    }
+
+    private func hardwareOptionBinding(
+        _ metric: HardwareMonitorMetric,
+        _ keyPath: WritableKeyPath<HardwareMetricRingOptions, Double>
+    ) -> Binding<Double> {
+        Binding(
+            get: { store.hardwareRingConfiguration.options(for: metric)[keyPath: keyPath] },
+            set: { newValue in
+                var configuration = store.hardwareRingConfiguration
+                var options = configuration.options(for: metric)
+                options[keyPath: keyPath] = newValue
+                configuration.overrides[metric] = options.normalized(for: metric)
+                store.hardwareRingConfiguration = configuration
+            }
+        )
+    }
+
+    private func resetHardwareMetricOptions() {
+        var configuration = store.hardwareRingConfiguration
+        for metric in configuration.referencedMetrics {
+            configuration.overrides[metric] = nil
+        }
+        store.hardwareRingConfiguration = configuration
+    }
+
+    private func hardwareStepperRange(_ metric: HardwareMonitorMetric) -> ClosedRange<Double> {
+        switch metric {
+        case .cpuUsage, .gpuUsage, .memoryUsage: return 0...100
+        case .cpuTemperature, .gpuTemperature: return 30...120
+        case .batteryTemperature: return 20...80
+        case .fan: return 0...10_000
+        case .downloadSpeed, .uploadSpeed: return SettingsStore.hardwareSpeedCapRange
+        case .volume, .wifiSignal, .batteryLevel: return 0...100
+        }
+    }
+
+    private func hardwareRangeSubtitle(metric: HardwareMonitorMetric, options: HardwareMetricRingOptions) -> String? {
+        guard !metric.isPercentageMetric, !metric.isSpeedMetric, metric != .fan else { return nil }
+        return "\(localization.string(.settingsHardwareRingRange)): \(Int(options.displayMinimum))–\(Int(options.displayMaximum))°C"
+    }
+
+    private func layoutLabel(_ layout: HardwareRingLayout) -> String {
+        switch layout {
+        case .single: return localization.string(.settingsHardwareRingLayoutSingle)
+        case .dual: return localization.string(.settingsHardwareRingLayoutDual)
+        }
+    }
+
+    /// Metrics selectable as the ring arcs (left/right) and as the top marker.
+    /// Volume and Wi-Fi signal strength are included so they can fill either an
+    /// arc or the top reading.
+    private var hardwareRingMetricGroups: [(title: String, options: [HardwareMonitorMetric])] {
+        let cpuOptions: [HardwareMonitorMetric] = store.hardwareTemperatureMonitoringEnabled
+            ? [.cpuUsage, .cpuTemperature] : [.cpuUsage]
+        let gpuOptions: [HardwareMonitorMetric] = store.hardwareTemperatureMonitoringEnabled
+            ? [.gpuUsage, .gpuTemperature] : [.gpuUsage]
+        return [
+            ("CPU", cpuOptions),
+            ("GPU", gpuOptions),
+            (localization.string(.settingsHardwareRingGroupOther),
+             HardwareMonitorMetric.otherArcMetrics)
+        ]
+    }
+
+    /// Grouped choices for the top-marker "metric value" menu: the same metrics
+    /// as the arcs plus battery level (电量), presented inside the Other group.
+    private var hardwareTopMetricGroups: [(title: String, options: [HardwareTopReading])] {
+        hardwareRingMetricGroups.map { group in
+            // Battery level already has its own dedicated top reading, so the
+            // arc-only entry is dropped from the top-marker menu.
+            let options = group.options
+                .filter { $0 != .batteryLevel }
+                .map { HardwareTopReading.metric($0) }
+            // Put battery level at the top of the Other group.
+            if group.options.contains(.memoryUsage) {
+                return (group.title, [.batteryLevel] + options)
+            }
+            return (group.title, options)
+        }
+    }
+
+    private func metricLabel(_ metric: HardwareMonitorMetric) -> String {
+        localization.string(metric.titleKey)
+    }
+
+    private func topReadingLabel(_ reading: HardwareTopReading) -> String {
+        switch reading {
+        case let .metric(metric): return metricLabel(metric)
+        case .batteryLevel: return localization.string(.settingsHardwareRingTopBatteryPercentage)
+        }
+    }
+
+    private func topModeLabel(_ mode: HardwareTopMode) -> String {
+        switch mode {
+        case .value: return localization.string(.settingsHardwareRingTopValue)
+        case .chargingIndicator: return localization.string(.settingsHardwareRingTopChargingIndicator)
+        case .hidden: return localization.string(.settingsHardwareRingTopHidden)
         }
     }
 
     /// Explains what still applies on a battery-less Mac (ring colour follows
     /// connected power and Low/High Power Mode) and what does not (percentage,
     /// charging marker), so the kept controls are not misleading.
-    private var noBatteryHintGroup: some View {
-        SettingsGroup {
+    private var noBatteryHintGroup: some View {        SettingsGroup {
             SettingsHintRow(text: localization.string(.settingsBatteryNoBatteryHiddenOptions))
-        }
-    }
-
-    // MARK: Top markers
-
-    private var topMarkersGroup: some View {
-        SettingsGroup(localization.string(.settingsBatteryGroupTopMarkers)) {
-            // What the ring's top slot carries (#274).
-            SettingsMenuRow(
-                symbol: "circle.dashed",
-                tint: .indigo,
-                title: localization.string(.settingsBatteryTopSlot),
-                subtitle: localization.string(.settingsBatteryTopSlotDescription),
-                selection: $store.batteryTopSlotContent,
-                options: BatteryTopSlotContent.allCases,
-                label: topSlotLabel
-            )
-
-            SettingsDivider()
-
-            if effectiveHasBattery {
-                // #315: one plain choice per power state, so the plug and bolt no
-                // longer hide behind a "show percentage" toggle or a combined
-                // "connected without charging" option.
-                markerRow(
-                    symbol: "percent",
-                    tint: .green,
-                    title: .settingsBatteryMarkerOnBattery,
-                    selection: $store.batteryOnBatteryMarker,
-                    options: BatteryTopMarker.onBatteryOptions
-                )
-
-                SettingsDivider()
-
-                markerRow(
-                    symbol: "bolt.fill",
-                    tint: .yellow,
-                    title: .settingsBatteryMarkerCharging,
-                    selection: $store.batteryChargingMarker,
-                    options: BatteryTopMarker.onPowerOptions
-                )
-
-                SettingsDivider()
-
-                markerRow(
-                    symbol: "powerplug.portrait.fill",
-                    tint: .teal,
-                    title: .settingsBatteryMarkerConnected,
-                    selection: $store.batteryConnectedMarker,
-                    options: BatteryTopMarker.onPowerOptions
-                )
-            } else {
-                // A Mac with no battery: the only top marker to configure is a
-                // decorative plug / bolt (or nothing).
-                markerRow(
-                    symbol: "bolt.fill",
-                    tint: .yellow,
-                    title: .settingsBatteryNoBatteryTopIndicator,
-                    selection: $store.batteryNoBatteryMarker,
-                    options: BatteryTopMarker.noBatteryOptions
-                )
-            }
-
-            if store.isBatterySymbolSizeEnabled {
-                SettingsDivider()
-
-                SettingsRow(
-                    "textformat.size",
-                    tint: .blue,
-                    title: localization.string(.settingsBatterySymbolScale),
-                    subtitle: localization.string(.settingsBatterySymbolScaleDescription)
-                ) {
-                    HStack(spacing: 8) {
-                        Slider(
-                            value: Binding(
-                                get: { store.batterySymbolScale },
-                                set: { store.setBatterySymbolScaleFromSlider(($0 * 20).rounded() / 20) }
-                            ),
-                            in: SettingsStore.batterySymbolScaleRange
-                        )
-                        .frame(width: 130)
-                        .controlSize(.small)
-                        .accessibilityLabel(
-                            localization.string(.settingsBatterySymbolScaleAccessibility)
-                        )
-                        .accessibilityValue("\(Int(store.batterySymbolScale * 100))%")
-
-                        Text("\(Int(store.batterySymbolScale * 100))%")
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, alignment: .trailing)
-                    }
-                }
-            }
-        }
-    }
-
-    private func markerRow(
-        symbol: String,
-        tint: Color,
-        title: LocalizationKey,
-        selection: Binding<BatteryTopMarker>,
-        options: [BatteryTopMarker]
-    ) -> some View {
-        SettingsMenuRow(
-            symbol: symbol,
-            tint: tint,
-            title: localization.string(title),
-            selection: selection,
-            options: options,
-            label: markerLabel
-        )
-    }
-
-    private func markerLabel(_ marker: BatteryTopMarker) -> String {
-        switch marker {
-        case .percentage:
-            localization.string(.settingsBatteryConnectedIndicatorPercentage)
-        case .bolt:
-            localization.string(.settingsBatteryConnectedIndicatorBolt)
-        case .plug:
-            localization.string(.settingsBatteryConnectedIndicatorPlug)
-        case .hidden:
-            localization.string(.settingsBatteryMarkerHidden)
         }
     }
 
@@ -294,66 +860,7 @@ struct AppIconRingView: View {
     // MARK: Colours
 
     private var colorsGroup: some View {
-        SettingsGroup(localization.string(.settingsBatteryGroupColors)) {
-            // #309: use black/white for the charging / connected state, while
-            // Low/High Power Mode and critical keep their own colours. nil means
-            // automatic — on by default on a battery-less Mac, off otherwise.
-            SettingsToggleRow(
-                symbol: "circle.lefthalf.filled",
-                tint: .gray,
-                title: localization.string(.settingsBatteryMonochromeCharging),
-                subtitle: localization.string(.settingsBatteryMonochromeChargingDescription),
-                isOn: Binding(
-                    get: { store.monochromeChargingRing ?? !effectiveHasBattery },
-                    set: { store.monochromeChargingRing = $0 }
-                )
-            )
-
-            SettingsDivider()
-
-            SettingsToggleRow(
-                symbol: "paintpalette.fill",
-                tint: .orange,
-                title: localization.string(.settingsBatteryStatusColors),
-                subtitle: localization.string(.settingsBatteryStatusColorsDescription),
-                isOn: $store.usesBatteryStatusColors
-            )
-
-            BatteryStatusColorsView(store: store)
-
-            if store.usesBatteryStatusColors {
-                SettingsDivider()
-
-                SettingsRow(
-                    "exclamationmark.triangle.fill",
-                    tint: .red,
-                    title: localization.string(.settingsBatteryCriticalThreshold),
-                    subtitle:
-                        localization.string(.settingsBatteryCriticalThresholdDescription)
-                ) {
-                    HStack(spacing: 8) {
-                        Slider(
-                            value: Binding(
-                                get: { store.batteryCriticalThreshold },
-                                set: { store.batteryCriticalThreshold = $0.rounded() }
-                            ),
-                            in: SettingsStore.batteryCriticalThresholdRange
-                        )
-                        .frame(width: 130)
-                        .controlSize(.small)
-                        .accessibilityLabel(
-                            localization.string(.settingsBatteryCriticalThreshold)
-                        )
-                        .accessibilityValue("\(Int(store.batteryCriticalThreshold))%")
-
-                        Text("\(Int(store.batteryCriticalThreshold))%")
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, alignment: .trailing)
-                    }
-                }
-            }
-        }
+        BatteryStatusColorsGroup(store: store, hasBattery: effectiveHasBattery)
     }
 
     // MARK: Animations
@@ -411,19 +918,156 @@ struct AppIconRingView: View {
         }
     }
 
-    private func topSlotLabel(_ content: BatteryTopSlotContent) -> String {
-        switch content {
-        case .automatic:
-            localization.string(.settingsBatteryTopSlotAutomatic)
-        case .battery:
-            localization.string(.settingsBatteryTopSlotBattery)
-        case .hidden:
-            localization.string(.settingsBatteryTopSlotHidden)
-        case .power:
-            localization.string(.settingsBatteryTopSlotPower)
-        case .powerWhenPluggedIn:
-            localization.string(.settingsBatteryTopSlotPowerWhenPluggedIn)
+}
+
+/// A small picture tile for the ring-content picker. It renders the real Status
+/// Trio icon scene for a fixed sample status through `IconCompositionResolver` —
+/// the same path the menu bar and Dock draw — with only the outer-ring source
+/// swapped between the two options. Everything else (the sample status, the
+/// current appearance: stroke width, colours, centre and scale, and the
+/// rendering environment) is identical for both tiles, so they differ only in
+/// the ring.
+private struct OuterRingContentPreview: View {
+    let content: OuterRingContent
+    @ObservedObject var store: SettingsStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let dark = colorScheme == .dark
+        ZStack {
+            MenuBarPreviewBackdrop(isDarkBackground: dark, cornerRadius: 6)
+            if let image = RingContentPreviewScene.image(
+                for: content,
+                store: store,
+                isDarkBackground: dark
+            ) {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .padding(3)
+            }
         }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Builds the still preview for one ring-content option from the runtime
+/// composition resolver — the same path the menu bar and Dock render — using a
+/// fixed sample status so the tile never depends on a live AirPods connection
+/// and switching options triggers no device query or sampling.
+@MainActor
+enum RingContentPreviewScene {
+    static let sampleDate = Date(timeIntervalSince1970: 1_789_555_974)
+
+    /// The configuration a ring-content tile renders. Starts from the live
+    /// appearance so the preview matches the real menu-bar/Dock rendering, then
+    /// swaps only the outer-ring source plus the AirPods ring behaviour the tile
+    /// is meant to preview. Exposed for tests.
+    static func configuration(
+        for content: OuterRingContent,
+        store: SettingsStore
+    ) -> IconConfigurationV1 {
+        var configuration = store.derivedIconConfigurationFromSettings()
+        switch content {
+        case .systemBattery:
+            configuration.composition.outerRing = SlotSelection(primary: .systemBattery)
+        case .airPodsBattery:
+            configuration.composition.outerRing = SlotSelection(primary: .airPodsBattery)
+        case .hardwareMonitor:
+            configuration.composition.outerRing = SlotSelection(primary: .hardwareMonitor)
+        }
+        // The derived configuration only carries the AirPods ring behaviour when
+        // the stored selection is already AirPods; the tile must preview the real
+        // design regardless of which option is currently selected.
+        configuration.behaviors.airPodsRing = store.airPodsRingUsesDualRing ? .dual : .single
+        configuration.behaviors.showsAirPodsTopSymbol = store.showsAirPodsTopSymbolInRing
+        return configuration
     }
 
+    static func image(
+        for content: OuterRingContent,
+        store: SettingsStore,
+        isDarkBackground: Bool
+    ) -> NSImage? {
+        let configuration = configuration(for: content, store: store)
+        let inputs = IconPreviewInputBuilder.simulated(
+            samples: IconPreviewSampleValues(),
+            configuration: configuration,
+            target: .currentAudioOutput,
+            now: sampleDate,
+            hardwareMetricColors: store.hardwareMonitorMetricColors,
+            hardwareSpeedCapsMbps: [
+                .downloadSpeed: store.hardwareDownloadCapMbps,
+                .uploadSpeed: store.hardwareUploadCapMbps
+            ]
+        )
+        let scene = IconCompositionResolver.resolve(
+            inputs: inputs,
+            configuration: configuration,
+            now: sampleDate
+        ).scene
+        return StatusIconPreviewCache.shared.image(
+            scene: scene,
+            size: 28,
+            scale: 2,
+            appearance: MenuBarPreviewBackdrop.appearance(isDarkBackground: isDarkBackground)
+        )
+    }
+
+
+}
+
+/// Numeric broadband-cap field: type a value directly (no stepper). Values are
+/// clamped to the allowed range and rounded on commit; intermediate typing is
+/// preserved so the user can clear/enter freely.
+struct HardwareCapField: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    @EnvironmentObject private var localization: Localization
+    @State private var text: String = ""
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            HStack(spacing: 4) {
+                TextField("", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 68)
+                    .labelsHidden()
+                    .onAppear { text = formatted(value) }
+                    .onChange(of: text) { newText in
+                        if let parsed = parse(newText) {
+                            let clamped = min(range.upperBound, max(range.lowerBound, parsed.rounded()))
+                            if clamped != value { value = clamped }
+                        }
+                    }
+                    .onChange(of: value) { newValue in
+                        if parse(text) != newValue { text = formatted(newValue) }
+                    }
+                    .onSubmit { text = formatted(value) }
+                Text("Mbps")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
+            Text("≈ \(String(format: "%.1f", value / 8)) MB/s")
+                .font(.system(size: 10))
+                .monospacedDigit()
+                .foregroundStyle(.tertiary)
+                .fixedSize()
+        }
+        .fixedSize()
+    }
+
+    private func parse(_ string: String) -> Double? {
+        let cleaned = string.replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        guard let value = Double(cleaned), value.isFinite else { return nil }
+        return value
+    }
+
+    private func formatted(_ value: Double) -> String {
+        "\(Int(value.rounded()))"
+    }
 }

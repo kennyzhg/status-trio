@@ -13,6 +13,7 @@ struct OutputDeviceRow: View {
     @Environment(\.statusPanelAnimatesDisclosures) private var animatesDisclosures
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.statusPanelBoldTextEnabled) private var panelBoldText
     @StateObject private var disclosure = StatusPanelResizeCoordinator()
     @State private var isPresented = true
     @State private var controlsHeight: CGFloat = 0
@@ -38,7 +39,11 @@ struct OutputDeviceRow: View {
 
     var showsExtraToggle: Bool {
         state.supportsAirPodsSystemControls && Self.disclosesExtraGroups(
-            hasListeningMode: state.listeningMode?.isControllable == true,
+            // A row still being discovered is laid out as if the control were
+            // already present, so the chevron and listening row do not pop in
+            // after the panel has already sized to the fallback (#354).
+            hasListeningMode: state.listeningMode?.isControllable == true
+                || state.listeningModeIsBeingDiscovered,
             spatial: state.airPodsSpatialSupported,
             conversation: state.airPodsConversationSupported
         )
@@ -177,6 +182,8 @@ struct OutputDeviceRow: View {
             }
             .padding(.leading, contentLeading)
             .padding(.top, 2)
+        } else if state.listeningModeIsBeingDiscovered, showsExtraToggle {
+            listeningModePlaceholder
         }
 
         if showsAdaptiveBar, let controls {
@@ -208,7 +215,9 @@ struct OutputDeviceRow: View {
                 .padding(.bottom, 6)
         }
 
-        if let message = state.listeningModeUnavailableText, !showsExtraToggle {
+        if let message = state.listeningModeUnavailableText,
+           !showsExtraToggle,
+           !showsInlineExtraGroup {
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -216,6 +225,26 @@ struct OutputDeviceRow: View {
                 .padding(.leading, contentLeading)
                 .padding(.top, 2)
         }
+    }
+
+    /// Skeleton for the listening-mode capsule row while discovery is in
+    /// flight. It mirrors the real row's height — the same top inset, capsule
+    /// height, and chevron — so when the control arrives the row keeps its
+    /// size instead of growing and moving the whole panel (#354).
+    private var listeningModePlaceholder: some View {
+        HStack(alignment: .center, spacing: 6) {
+            ForEach(0..<3, id: \.self) { _ in
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(width: 46, height: AirPodsControlMetrics.capsuleHeight)
+            }
+            Spacer(minLength: 6)
+            expandButton
+        }
+        .padding(.leading, contentLeading)
+        .padding(.top, 2)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
     }
 
     private var expandButton: some View {
@@ -292,7 +321,7 @@ struct OutputDeviceRow: View {
                 .frame(width: 24, height: 24)
 
                 Text(state.name)
-                    .font(.body.weight(state.selected ? .semibold : .regular))
+                    .font(.body.weight(state.selected && panelBoldText ? .semibold : .regular))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -303,7 +332,10 @@ struct OutputDeviceRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 3)
+            // Same vertical insets as the Bluetooth device row (top 0 /
+            // bottom 5), so the first row sits 8pt under the controls and rows
+            // keep the Bluetooth list's rhythm.
+            .padding(.bottom, 5)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -36,6 +36,9 @@ struct GeneralSectionView: View {
     var body: some View {
         SettingsPage {
             systemGroup
+            appearanceGroup
+            quickActionsGroup
+            statusCheckGroup
             SettingsTransferView(
                 session: transferSession,
                 localization: localization
@@ -122,8 +125,11 @@ struct GeneralSectionView: View {
                 }
             }
 
-            SettingsDivider()
+        }
+    }
 
+    private var quickActionsGroup: some View {
+        SettingsGroup(localization.string(.settingsQuickActionsTitle)) {
             if let globalShortcutController {
                 ShortcutSettingsRow(
                     store: store,
@@ -135,9 +141,11 @@ struct GeneralSectionView: View {
             }
 
             rightClickActionRow
+        }
+    }
 
-            SettingsDivider()
-
+    private var statusCheckGroup: some View {
+        SettingsGroup(localization.string(.settingsStatusCheckTitle)) {
             // Status refresh interval (#255): one row per power source, using
             // the original settings-row and slider component. The description
             // stays once on the first row; neither row shows step ticks.
@@ -152,6 +160,34 @@ struct GeneralSectionView: View {
             refreshIntervalRow(
                 title: localization.string(.settingsRefreshIntervalOnPower),
                 value: $store.refreshIntervalOnPowerSeconds
+            )
+        }
+    }
+
+    /// Panel appearance: the fill colour used by the volume, brightness and
+    /// microphone sliders in the status panel (#359).
+    private var appearanceGroup: some View {
+        SettingsGroup {
+            SettingsRow(
+                "slider.horizontal.3",
+                tint: .teal,
+                title: localization.string(.settingsPanelLevelSliderColor),
+                subtitle: localization.string(.settingsPanelLevelSliderColorDescription)
+            ) {
+                PanelLevelSliderColorRow(
+                    store: store,
+                    localization: localization
+                )
+            }
+
+            SettingsDivider()
+
+            SettingsToggleRow(
+                symbol: "rectangle.portrait.arrowtriangle.2.outward",
+                tint: .teal,
+                title: localization.string(.settingsPanelLevelSliderThickness),
+                subtitle: localization.string(.settingsPanelLevelSliderThicknessDescription),
+                isOn: $store.panelLevelSliderMatchesBrightnessThickness
             )
         }
     }

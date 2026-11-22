@@ -9,6 +9,10 @@ struct BatteryStatus: Equatable, Sendable {
     let timeToEmptyMinutes: Int?
     let isLowPowerMode: Bool
     let isConnectedToPower: Bool
+    /// The percentage macOS stops charging at when a charge limit is in
+    /// effect. Nil when the battery may reach 100%. The system estimate targets
+    /// this limit instead of 100%.
+    let chargeLimitPercent: Int?
 
     init(
         rawPercentage: Int?,
@@ -18,7 +22,8 @@ struct BatteryStatus: Equatable, Sendable {
         timeToFullChargeMinutes: Int? = nil,
         timeToEmptyMinutes: Int? = nil,
         isLowPowerMode: Bool,
-        isConnectedToPower: Bool
+        isConnectedToPower: Bool,
+        chargeLimitPercent: Int? = nil
     ) {
         self.rawPercentage = rawPercentage
         self.isPresent = isPresent
@@ -28,6 +33,7 @@ struct BatteryStatus: Equatable, Sendable {
         self.timeToEmptyMinutes = timeToEmptyMinutes
         self.isLowPowerMode = isLowPowerMode
         self.isConnectedToPower = isConnectedToPower
+        self.chargeLimitPercent = chargeLimitPercent
     }
 
     var percentage: Int {
@@ -139,6 +145,9 @@ enum VolumeControlSource: Equatable, Sendable {
 struct VolumeStatus: Equatable, Sendable {
     let scalar: Double?
     let isMuted: Bool
+    /// True when the app muted the device itself because the user drove the
+    /// volume to exactly zero. A user's manual mute is never flagged here.
+    let isAutoMuted: Bool
     let muteState: VolumeMuteState
     let deviceName: String?
     let currentDevice: AudioOutputDevice?
@@ -156,12 +165,14 @@ struct VolumeStatus: Equatable, Sendable {
         outputDevices: [AudioOutputDevice] = [],
         canSetVolume: Bool? = nil,
         canMute: Bool? = nil,
+        isAutoMuted: Bool = false,
         muteState: VolumeMuteState? = nil,
         externalVolumeTransitionGeneration: UInt64 = 0,
         controlSource: VolumeControlSource = .unavailable
     ) {
         self.scalar = scalar
         self.isMuted = isMuted
+        self.isAutoMuted = isAutoMuted
         self.muteState = muteState ?? (isMuted ? .muted : .unmuted)
         self.deviceName = deviceName
         self.currentDevice = currentDevice
@@ -193,6 +204,7 @@ extension VolumeStatus {
     /// per-device volume fields and keeps only device identity.
     func changesOnlyLevel(comparedTo other: VolumeStatus) -> Bool {
         isMuted == other.isMuted
+            && isAutoMuted == other.isAutoMuted
             && muteState == other.muteState
             && deviceName == other.deviceName
             && currentDevice?.replacingVolume(nil) == other.currentDevice?.replacingVolume(nil)
@@ -216,6 +228,7 @@ extension VolumeStatus {
             outputDevices: outputDevices,
             canSetVolume: canSetVolume,
             canMute: canMute,
+            isAutoMuted: isAutoMuted,
             muteState: muteState,
             externalVolumeTransitionGeneration: generation,
             controlSource: controlSource ?? self.controlSource

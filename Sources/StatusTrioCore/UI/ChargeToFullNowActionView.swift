@@ -13,7 +13,10 @@ extension ChargeToFullNowPresentation {
 /// details page. Keeping one view guarantees both surfaces use the same label,
 /// progress, cancel confirmation, and error notices.
 struct ChargeToFullNowActionView: View {
+    @Environment(\.statusPanelMediumTextEnabled) private var panelMediumText
     @EnvironmentObject private var localization: Localization
+    @Environment(\.panelCardSurfaceStyle) private var cardStyle
+    @Environment(\.colorScheme) private var scheme
     let presentation: ChargeToFullNowPresentation
     let onAction: () -> Void
 
@@ -41,12 +44,12 @@ struct ChargeToFullNowActionView: View {
                             Spacer(minLength: 8)
 
                             Text(actionLabel)
-                                .font(.caption.weight(.medium))
+                                .font(.caption.weight(panelMediumText ? .medium : .regular))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
                         } else {
                             Text(actionLabel)
-                                .font(.caption.weight(.medium))
+                                .font(.caption.weight(panelMediumText ? .medium : .regular))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
 
@@ -56,18 +59,17 @@ struct ChargeToFullNowActionView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 10)
                     .frame(maxWidth: .infinity, minHeight: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(Color.secondary.opacity(0.08))
+                    .modifier(
+                        ChargeActionSurface(
+                            cardStyle: cardStyle,
+                            scheme: scheme,
+                            isInteractive: isActionEnabled
+                        )
                     )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(Color.secondary.opacity(0.12))
-                    }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(presentation.isApplying || presentation.isCancelling || presentation == .chargingToFull)
+                .disabled(!isActionEnabled)
                 .accessibilityLabel(actionLabel)
             }
 
@@ -152,6 +154,14 @@ struct ChargeToFullNowActionView: View {
         }
     }
 
+    /// Mirrors the button's disabled state so the hover sheen only appears on
+    /// a button the user can actually press.
+    private var isActionEnabled: Bool {
+        !(presentation.isApplying
+            || presentation.isCancelling
+            || presentation == .chargingToFull)
+    }
+
     private var showsBolt: Bool {
         switch presentation {
         case .available, .failed:
@@ -191,5 +201,76 @@ struct ChargeToFullNowActionView: View {
         .font(.caption2)
         .foregroundStyle(color)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Panel-aware surface for the Charge to Full Now action: interactive native
+/// glass on Liquid Glass, a light wash over the frosted panel, and an opaque
+/// adaptive base on solid — with a 10pt corner aligned to the cards.
+private struct ChargeActionSurface: ViewModifier {
+    let cardStyle: PanelCardSurfaceStyle
+    let scheme: ColorScheme
+    /// Only a button the user can actually press earns the hover sheen.
+    let isInteractive: Bool
+
+    @State private var isHovering = false
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+    }
+
+    /// The liquid-glass gloss kept in sync with the quick-action pills: a
+    /// faint white fill plus a brighter rim, revealed only while the pointer
+    /// rests on an enabled button.
+    private var showsHoverGloss: Bool {
+        isInteractive && isHovering
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        surface(content)
+            .overlay {
+                if showsHoverGloss {
+                    shape.fill(Color.white.opacity(0.06))
+                        .overlay {
+                            shape.strokeBorder(
+                                Color.white.opacity(0.22),
+                                lineWidth: 1
+                            )
+                        }
+                        .allowsHitTesting(false)
+                }
+            }
+            .animation(.easeOut(duration: 0.12), value: showsHoverGloss)
+            .onHover { hovering in
+                if isInteractive {
+                    isHovering = hovering
+                } else {
+                    isHovering = false
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func surface(_ content: Content) -> some View {
+        switch cardStyle {
+        case .glass:
+            if #available(macOS 26.0, *), PanelCardSurfaceExperiment.useNative {
+                content.glassEffect(.regular.interactive(), in: shape)
+            } else {
+                content
+                    .background(shape.fill(Color.secondary.opacity(0.08)))
+                    .overlay { shape.strokeBorder(Color.secondary.opacity(0.12)) }
+            }
+        case .material:
+            content
+                .background(shape.fill(Color.secondary.opacity(0.10)))
+                .overlay { shape.strokeBorder(Color.secondary.opacity(0.14)) }
+        case .solid:
+            content
+                .background(shape.fill(Color.secondary.opacity(0.06)))
+                .background(shape.fill(PanelCardSurfaceStyle.solidBase(scheme: scheme)))
+                .overlay { shape.strokeBorder(Color.secondary.opacity(0.18)) }
+        }
     }
 }

@@ -49,11 +49,16 @@ final class InputSourceSettingsTests: XCTestCase {
         )
         let store = SettingsStore(defaults: suite.defaults)
 
-        // Appended after the stored sections; the later Weather section
-        // follows it in the canonical order.
-        XCTAssertEqual(store.popupSectionOrder.suffix(2), [.inputSource, .weather])
+        // Every default section missing from the stored list is appended in
+        // default order, without enabling it or reordering the stored rows.
         XCTAssertEqual(store.popupSectionOrder.first, .volume)
+        XCTAssertTrue(store.popupSectionOrder.contains(.inputSource))
+        XCTAssertTrue(store.popupSectionOrder.contains(.hardwareMonitor))
+        // The fork's Weather section stays last in the canonical order.
+        XCTAssertEqual(store.popupSectionOrder.last, .weather)
+        XCTAssertFalse(store.enabledPopupSections.contains(.weather))
         XCTAssertFalse(store.enabledPopupSections.contains(.inputSource))
+        XCTAssertFalse(store.enabledPopupSections.contains(.hardwareMonitor))
         XCTAssertEqual(store.visiblePopupSections, [.volume, .battery])
     }
 

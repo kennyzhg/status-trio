@@ -6,11 +6,42 @@ import XCTest
 
 @MainActor
 final class SettingsViewTests: XCTestCase {
+    func testKeepAwakeHelperStatusMatchesBatteryWhenHelperUnavailable() {
+        XCTAssertEqual(KeepAwakeHelperStatus.textKey(isAvailable: false, isReady: false),
+                       .lowPowerModeHelperUnavailable)
+        XCTAssertEqual(KeepAwakeHelperStatus.textKey(isAvailable: false, isReady: true),
+                       .lowPowerModeHelperUnavailable)
+        XCTAssertEqual(KeepAwakeHelperStatus.textKey(isAvailable: true, isReady: true),
+                       .settingsKeepAwakeHelperReady)
+        XCTAssertEqual(KeepAwakeHelperStatus.textKey(isAvailable: true, isReady: false),
+                       .settingsKeepAwakeHelperHint)
+        XCTAssertEqual(KeepAwakeHelperStatus.symbolName(isAvailable: false), "exclamationmark.triangle.fill")
+        XCTAssertEqual(KeepAwakeHelperStatus.symbolName(isAvailable: true), "lock.shield")
+    }
+
+    func testPanelDetailCopyMatchesTheSideBySideBehaviour() throws {
+        let suite = "SettingsViewTests.panelDetailCopy.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let localization = Localization(defaults: defaults, preferredLanguages: ["zh-Hans"])
+        XCTAssertEqual(localization.resolvedLanguage, .simplifiedChinese)
+
+        XCTAssertEqual(localization.string(.settingsPanelShowsDetailsAlongside), "并排显示详情")
+        let alongside = localization.string(.settingsPanelShowsDetailsAlongsideDescription)
+        XCTAssertTrue(alongside.contains("右侧"))
+        XCTAssertTrue(alongside.contains("左侧"))
+        XCTAssertEqual(localization.string(.settingsPanelReturnsToSummaryOnOpen), "重新打开时恢复详情页")
+        let reopen = localization.string(.settingsPanelReturnsToSummaryOnOpenDescription)
+        XCTAssertTrue(reopen.contains("上次收起"))
+        XCTAssertTrue(reopen.contains("详情"))
+        XCTAssertEqual(localization.string(.commonCloseDetail), "关闭详情")
+    }
+
     func testSettingsViewDimensionsAndSections() {
-        XCTAssertEqual(SettingsView.Section.allCases.count, 9)
+        XCTAssertEqual(SettingsView.Section.allCases.count, 11)
         XCTAssertEqual(SettingsView.sidebarWidth, 196)
         XCTAssertEqual(SettingsView.width, 720)
-        XCTAssertEqual(SettingsView.height, 530)
+        XCTAssertEqual(SettingsView.height, 600)
         // #304: the window is resizable, so the minimums must sit below the
         // default size and still leave room for the fixed sidebar.
         XCTAssertEqual(SettingsView.minimumWidth, 640)
@@ -22,6 +53,32 @@ final class SettingsViewTests: XCTestCase {
             320,
             "The detail column needs room for its widest 180pt control plus a label."
         )
+    }
+
+    func testDefaultHeightFitsTheFullSidebarWithoutScrolling() {
+        // Nine scrollable categories (App Icon carries four leaves) plus the
+        // pinned General/About group; mirrors the fixed metrics in the sidebar.
+        let scrollableGroups: CGFloat = 9
+        let appIconLeaves: CGFloat = 4
+        let contentHeight = SettingsSidebarMetrics.topInset
+            + scrollableGroups * SettingsSidebarMetrics.categoryRowHeight
+            + appIconLeaves * SettingsSidebarMetrics.subtopicRowHeight
+            + (scrollableGroups - 1) * SettingsSidebarMetrics.categoryGroupSpacing
+            + 6 // scroll content bottom padding
+            + 1 // separator hairline
+            + 2 * SettingsSidebarMetrics.categoryRowHeight
+            + SettingsSidebarMetrics.categoryGroupSpacing
+            + 2 * SettingsSidebarMetrics.pinnedGroupVerticalPadding
+            + 2 // pinned bottom padding
+        XCTAssertGreaterThanOrEqual(SettingsView.height, contentHeight)
+    }
+
+    func testDefaultContentSizeShowsTheSidebarAndClampsOnShortScreens() {
+        let normal = NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let short = NSRect(x: 0, y: 0, width: 1440, height: 500)
+        XCTAssertEqual(SettingsView.defaultContentSize(for: normal).height, 600)
+        XCTAssertEqual(SettingsView.defaultContentSize(for: short).height, SettingsView.minimumHeight)
+        XCTAssertEqual(SettingsView.defaultContentSize(for: nil).height, 600)
     }
 
     func testMenuBarPreviewFollowsSystemAppearanceUntilManuallyOverridden() {
@@ -37,7 +94,7 @@ final class SettingsViewTests: XCTestCase {
     func testSidebarListsEveryStatusElementBeforeTheAppWidePanes() {
         XCTAssertEqual(
             SettingsView.Section.allCases,
-            [.appIcon, .battery, .network, .bluetooth, .audio, .brightness, .popover, .general, .about]
+            [.appIcon, .battery, .keepAwake, .network, .bluetooth, .audio, .brightness, .monitor, .popover, .general, .about]
         )
         XCTAssertEqual(SettingsView.Section.allCases.first, .appIcon)
         // The brightness hub sits directly after the audio pane.

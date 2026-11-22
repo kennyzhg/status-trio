@@ -158,12 +158,27 @@ enum PanelPresentationMapper {
             subtitle: subtitle,
             measurements: nil,
             symbol: .symbol(name: "cable.connector", variableValue: nil, fallback: nil),
-            tint: .secondary,
+            tint: .primary,
             accessibilityLabel: title,
             accessibilityValue: subtitle,
             showsSettings: true,
             intent: .wiredDetails
         )
+    }
+
+    /// The summary icon follows the connection state (#352): a usable link uses
+    /// the primary foreground ink (white in dark mode), an associated network
+    /// without internet warns in caution, and a radio that is off, unassociated
+    /// or unavailable stays secondary so it reads as muted rather than "on".
+    private static func wifiTint(for state: WiFiState) -> PanelTint {
+        switch state {
+        case .connected, .hotspot, .temporary, .shared:
+            return .primary
+        case .noInternet:
+            return .caution
+        case .notAssociated, .off, .unavailable:
+            return .secondary
+        }
     }
 
     private static func nonEmpty(_ value: String?) -> String? {
@@ -246,13 +261,39 @@ enum PanelPresentationMapper {
         return localization.format(.batteryTitle, battery.percentage)
     }
 
-    static func batteryTimeToFullText(minutes: Int?, localization: Localization) -> String {
+    static func batteryTimeToFullText(
+        minutes: Int?,
+        targetPercent: Int? = nil,
+        localization: Localization
+    ) -> String {
         guard let minutes, minutes > 0 else {
             return localization.string(.batteryStateCalculatingTimeToFull)
         }
 
         let hours = minutes / 60
         let remainingMinutes = minutes % 60
+        if let targetPercent {
+            if hours == 0 {
+                return localization.format(
+                    .batteryTimeToChargeLimitMinutes,
+                    remainingMinutes,
+                    targetPercent
+                )
+            }
+            if remainingMinutes == 0 {
+                return localization.format(
+                    .batteryTimeToChargeLimitHours,
+                    hours,
+                    targetPercent
+                )
+            }
+            return localization.format(
+                .batteryTimeToChargeLimitHoursMinutes,
+                hours,
+                remainingMinutes,
+                targetPercent
+            )
+        }
         if hours == 0 {
             return localization.format(.batteryTimeToFullMinutes, remainingMinutes)
         }
@@ -260,6 +301,32 @@ enum PanelPresentationMapper {
             return localization.format(.batteryTimeToFullHours, hours)
         }
         return localization.format(.batteryTimeToFullHoursMinutes, hours, remainingMinutes)
+    }
+
+    /// IOKit's time-to-full estimate targets 100%. When macOS holds the battery
+    /// at a lower charge limit, the system's own estimate targets that limit, so
+    /// scale the remaining energy to the remaining percentage up to the limit.
+    /// Charge to Full Now overrides the limit, so it keeps the 100% target.
+    static func chargeTimeEstimate(
+        _ battery: BatteryStatus,
+        chargeToFullNow: ChargeToFullNowPresentation
+    ) -> (minutes: Int?, targetPercent: Int?) {
+        let raw = battery.timeToFullChargeMinutes
+        guard let raw, raw > 0 else { return (raw, nil) }
+        if chargeToFullNow.isChargingToFull || chargeToFullNow.isApplying {
+            return (raw, nil)
+        }
+        guard let limit = battery.chargeLimitPercent,
+              (1..<100).contains(limit) else { return (raw, nil) }
+        let current = battery.rawPercentage.map { min(100, max(0, $0)) }
+            ?? battery.percentage
+        guard current < limit else { return (raw, nil) }
+        let remainingToFull = 100 - current
+        guard remainingToFull > 0 else { return (raw, nil) }
+        let scaled = Int(
+            (Double(raw) * Double(limit - current) / Double(remainingToFull)).rounded()
+        )
+        return (scaled > 0 ? scaled : nil, limit)
     }
 
     static func batteryRuntimeText(
@@ -293,11 +360,27 @@ enum PanelPresentationMapper {
         if battery.isCharged {
             return localization.string(.batteryStateCharged)
         }
+        // macOS already reports 100% while the battery management system is
+        // still finishing the charge. `isCharged` stays false until that ends,
+        // which can take about an hour, so without this branch the panel would
+        // keep saying "Calculating time to full" for a battery that is full.
+        // This is a display-only description: it does not assert a strict
+        // hardware trickle mode, and it never recomputes the percentage.
+        if battery.isConnectedToPower,
+           battery.percentage >= 100,
+           battery.isCharging {
+            return localization.string(.batteryStateTrickleCharging)
+        }
         if battery.isCharging {
             // A known estimate always wins, including while Charge to Full Now
             // is running; the click only supplies a placeholder until then.
+            let estimate = chargeTimeEstimate(
+                battery,
+                chargeToFullNow: chargeToFullNow
+            )
             return batteryTimeToFullText(
-                minutes: battery.timeToFullChargeMinutes,
+                minutes: estimate.minutes,
+                targetPercent: estimate.targetPercent,
                 localization: localization
             )
         }
@@ -502,7 +585,7 @@ enum PanelPresentationMapper {
             subtitle: subtitle,
             measurements: measurements,
             symbol: wifiSymbol(wifi),
-            tint: .secondary,
+            tint: wifiTint(for: wifi.state),
             accessibilityLabel: accessibilityLabel,
             accessibilityValue: measurements ?? "",
             showsSettings: true,

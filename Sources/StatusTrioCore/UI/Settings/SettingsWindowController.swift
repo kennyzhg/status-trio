@@ -132,7 +132,6 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         }
         // The user may have approved the power helper in System Settings since
         // the last look; refresh so the toggle and its approval note are current.
-        PrivilegedHelperManager.shared.refresh()
         presentWindow(window, backgroundUITesting.isEnabled ? .background : .activating)
         if backgroundUITesting.isEnabled {
             let displayID = (window.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
@@ -214,7 +213,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let frameAutosaveName = "SettingsWindow.Sidebar.v1"
 
     private func makeWindow() -> NSWindow {
-        let contentSize = NSSize(width: SettingsView.width, height: SettingsView.height)
+        let contentSize = SettingsView.defaultContentSize(for: NSScreen.main?.visibleFrame)
+        // SettingsWindow handles the editing shortcuts (⌘V/⌘C/⌘X/⌘A/⌘Z): the
+        // app has no Edit menu.
         let window = SettingsWindow(
             contentRect: NSRect(origin: .zero, size: contentSize),
             // `.resizable` gives the green title-bar button its zoom/full-screen

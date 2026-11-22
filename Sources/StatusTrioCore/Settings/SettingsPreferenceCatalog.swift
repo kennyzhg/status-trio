@@ -63,7 +63,17 @@ enum SettingsPreferenceCatalog {
     // a store, running migration, reading system settings or touching defaults.
     private static var preferences: [Preference] {
         generalPreferences + iconPreferences + batteryPreferences + networkAndAudioPreferences
-            + bluetoothPreferences + panelPreferences
+            + bluetoothPreferences + brightnessPreferences + panelPreferences
+    }
+
+    private static var brightnessPreferences: [Preference] {
+        [
+            boolean(
+                "useBetterDisplayCombinedBrightness",
+                \.useBetterDisplayCombinedBrightness,
+                default: false
+            )
+        ]
     }
 
     private static var generalPreferences: [Preference] {
@@ -71,6 +81,12 @@ enum SettingsPreferenceCatalog {
             enumeration("appIconPlacement", \.appIconPlacement, default: .menuBar),
             enumeration("dockIconBackgroundPreference", \.dockIconBackgroundPreference, default: .system),
             enumeration("panelBackgroundStyle", \.panelBackgroundStyle, default: PanelBackgroundStyle.systemDefault),
+            panelLevelSliderColorPreference,
+            boolean(
+                "panelLevelSliderMatchesBrightnessThickness",
+                \.panelLevelSliderMatchesBrightnessThickness,
+                default: false
+            ),
             enumeration("menuBarRightClickAction", \.menuBarRightClickAction, default: .contextMenu),
             number("refreshIntervalOnBatterySeconds", \.refreshIntervalOnBatterySeconds,
                    default: SettingsStore.defaultRefreshIntervalSeconds, range: SettingsStore.refreshIntervalRange, step: 1),
@@ -111,7 +127,8 @@ enum SettingsPreferenceCatalog {
                    }, encode: { .string($0) }),
             boolean("usesBluetoothAudioVolumeColor", \.usesBluetoothAudioVolumeColor, default: false),
             enumeration("volumeDisplayStyle", \.volumeDisplayStyle, default: SettingsStore.defaultVolumeDisplayStyle),
-            enumeration("ringStrokeStyle", \.ringStrokeStyle, default: SettingsStore.defaultRingStrokeStyle)
+            enumeration("ringStrokeStyle", \.ringStrokeStyle, default: SettingsStore.defaultRingStrokeStyle),
+            slotBindingsPreference
         ]
     }
 
@@ -178,12 +195,46 @@ enum SettingsPreferenceCatalog {
             boolean("popupPanelScrollAdjustsVolume", \.popupPanelScrollAdjustsVolume,
                     default: SettingsStore.defaultPopupPanelScrollAdjustsVolume),
             boolean("returnsToSummaryOnOpen", \.returnsToSummaryOnOpen, default: false),
+            boolean("showsPanelDetailsAlongside", \.showsPanelDetailsAlongside, default: false),
+            boolean("showsPanelOnHover", \.showsPanelOnHover, default: false),
             number("popupScrollWheelStepPercent", \.popupScrollWheelStepPercent,
                    default: SettingsStore.defaultPopupScrollWheelStepPercent,
                    range: SettingsStore.popupScrollWheelStepPercentRange, step: 0.5),
             boolean("popupVolumeNaturalScrolling", \.popupVolumeNaturalScrolling,
                     default: SettingsStore.defaultPopupVolumeNaturalScrolling),
-            optionalBoolean("popupVolumeScrollFeedbackOverride", \.popupVolumeScrollFeedbackOverride)
+            optionalBoolean("popupVolumeScrollFeedbackOverride", \.popupVolumeScrollFeedbackOverride),
+            boolean("hardwareBackgroundHistoryEnabled", \.hardwareBackgroundHistoryEnabled,
+                    default: SettingsStore.defaultHardwareBackgroundHistoryEnabled),
+            integer("hardwarePanelRefreshSeconds", \.hardwarePanelRefreshSeconds,
+                    default: SettingsStore.defaultHardwarePanelRefreshSeconds, range: 1...8),
+            integer("hardwareHistoryWindowMinutes", \.hardwareHistoryWindowMinutes,
+                    default: SettingsStore.defaultHardwareHistoryWindowMinutes,
+                    range: 1...5),
+            boolean("hardwareNetworkChartFixedScale", \.hardwareNetworkChartFixedScale, default: false),
+            number("hardwareDownloadCapMbps", \.hardwareDownloadCapMbps,
+                   default: SettingsStore.defaultHardwareDownloadCapMbps,
+                   range: SettingsStore.hardwareSpeedCapRange, step: 1),
+            number("hardwareUploadCapMbps", \.hardwareUploadCapMbps,
+                   default: SettingsStore.defaultHardwareUploadCapMbps,
+                   range: SettingsStore.hardwareSpeedCapRange, step: 1),
+            boolean("showsHardwareRings", \.showsHardwareRings, default: true),
+            boolean("showsHardwareSummaryRow", \.showsHardwareSummaryRow, default: true),
+            boolean("showsHardwareTopApps", \.showsHardwareTopApps, default: true),
+            enabledHardwareRingSlotsPreference,
+            enabledHardwareSummaryMetricsPreference,
+            enumeration("memoryRingDisplayMode", \.memoryRingDisplayMode,
+                        default: .used, allowed: RingValueDisplayMode.allCases),
+            enumeration("ssdRingDisplayMode", \.ssdRingDisplayMode,
+                        default: .used, allowed: RingValueDisplayMode.allCases),
+            boolean("hardwareTemperatureMonitoringEnabled",
+                    \.hardwareTemperatureMonitoringEnabled, default: true),
+            enumeration("cpuRingCenterContent", \.cpuRingCenterContent,
+                        default: .temperature, allowed: HardwareRingCenterContent.allCases),
+            enumeration("gpuRingCenterContent", \.gpuRingCenterContent,
+                        default: .temperature, allowed: HardwareRingCenterContent.allCases)
+            // Appearance-only ring colours (hardwareMonitorMetricColors and
+            // hardwareDiskRingColor) are intentionally excluded from settings
+            // transfer: they are per-surface cosmetics, not portable preferences.
         ]
     }
 
@@ -222,6 +273,44 @@ enum SettingsPreferenceCatalog {
                        default: break
                        }
                    })
+    }
+
+    private static var slotBindingsPreference: Preference {
+        let shipped = IconSlotBindingsV1(
+            schemaVersion: 1,
+            outerRing: .init(primary: .init(pluginID: "builtin.system-battery", presentationID: "ring")),
+            center: .init(
+                primary: .init(pluginID: "builtin.legacy", presentationID: "center"),
+                fallback: .init(pluginID: "builtin.network", presentationID: "center")),
+            footer: .init(primary: .init(pluginID: "builtin.system-volume", presentationID: "footer"))
+        )
+        let defaultJSON = (try? IconSlotBindingsCodec.encode(shipped))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+        func decode(_ value: SettingsTransferValue) -> IconSlotBindingsV1? {
+            guard case let .string(json) = value,
+                  let data = json.data(using: .utf8),
+                  let decoded = try? IconSlotBindingsCodec.decode(data) else { return nil }
+            return decoded
+        }
+        return Preference(
+            key: "iconSlotBindings",
+            defaultValue: .string(defaultJSON),
+            read: { store in
+                let json = (try? IconSlotBindingsCodec.encode(store.iconSlotBindings))
+                    .flatMap { String(data: $0, encoding: .utf8) } ?? defaultJSON
+                return .string(json)
+            },
+            isValid: { decode($0) != nil },
+            write: { value, store in
+                guard let decoded = decode(value) else { return }
+                for slot in IconSlot.allCases {
+                    let selection = decoded.selection(for: slot)
+                    store.setIconSlotBinding(
+                        primary: selection.primary, fallback: selection.fallback, for: slot)
+                }
+                store.applyIconSlotBindings(decoded)
+            }
+        )
     }
 
     private static func enumeration<T: RawRepresentable>(
@@ -264,6 +353,27 @@ enum SettingsPreferenceCatalog {
                   raw == "blue" || raw == "primary" || validCustomColor(raw) else { return nil }
             return BluetoothIconColorSelection(storageValue: raw)
         }, encode: { .string($0.storageValue) })
+    }
+
+    private static var panelLevelSliderColorPreference: Preference {
+        func decode(_ value: Value) -> PanelLevelSliderColorSelection? {
+            guard case let .string(raw) = value,
+                  raw == "automatic" || validSliderColor(raw) else { return nil }
+            return PanelLevelSliderColorSelection(storageValue: raw)
+        }
+        func encode(_ selection: PanelLevelSliderColorSelection) -> Value {
+            .string(selection.storageValue)
+        }
+        return Preference(
+            key: "panelLevelSliderColor",
+            defaultValue: encode(.default),
+            read: { encode($0.panelLevelSliderColor) },
+            isValid: { decode($0) != nil },
+            write: { value, store in
+                guard let selection = decode(value) else { return }
+                store.panelLevelSliderColor = selection
+            }
+        )
     }
 
     private static var batteryColorsPreference: Preference {
@@ -329,6 +439,17 @@ enum SettingsPreferenceCatalog {
         }
     }
 
+    /// Slider fill colour: `automatic` or `custom:r,g,b,a` with every component
+    /// in 0...1.
+    private static func validSliderColor(_ raw: String) -> Bool {
+        guard raw.hasPrefix("custom:") else { return false }
+        let parts = raw.dropFirst("custom:".count).split(separator: ",", omittingEmptySubsequences: false)
+        return parts.count == 4 && parts.allSatisfy { part in
+            guard let value = Double(part), value.isFinite else { return false }
+            return (0...1).contains(value)
+        }
+    }
+
     private static func sections(_ value: Value, requiresFullOrder: Bool) -> [PopupSection]? {
         guard case let .array(elements) = value else { return nil }
         var result: [PopupSection] = []
@@ -371,5 +492,56 @@ enum SettingsPreferenceCatalog {
                            store.setPopupSection(section, enabled: enabled.contains(section))
                        }
                    })
+    }
+
+    /// Per-ring visibility for the status-panel summary, exported so a transfer
+    /// keeps the user's chosen subset. An empty set is invalid on import.
+    private static var enabledHardwareRingSlotsPreference: Preference {
+        Preference(
+            key: "enabledHardwareRingSlots",
+            defaultValue: .array(HardwareRingSlot.allCases.map { $0.rawValue }.sorted().map { .string($0) }),
+            read: { store in
+                .array(store.enabledHardwareRingSlots.map { $0.rawValue }.sorted().map { .string($0) })
+            },
+            isValid: { value in
+                guard case let .array(items) = value, !items.isEmpty else { return false }
+                return items.allSatisfy { item in
+                    guard case let .string(raw) = item else { return false }
+                    return HardwareRingSlot(rawValue: raw) != nil
+                }
+            },
+            write: { value, store in
+                guard case let .array(items) = value else { return }
+                let slots = Set(items.compactMap { item -> HardwareRingSlot? in
+                    guard case let .string(raw) = item else { return nil }
+                    return HardwareRingSlot(rawValue: raw)
+                })
+                store.setEnabledHardwareRingSlots(slots)
+            })
+    }
+
+    /// Per-info-bar-metric visibility for the status-panel summary.
+    private static var enabledHardwareSummaryMetricsPreference: Preference {
+        Preference(
+            key: "enabledHardwareSummaryMetrics",
+            defaultValue: .array(HardwareSummaryMetric.allCases.map { $0.rawValue }.sorted().map { .string($0) }),
+            read: { store in
+                .array(store.enabledHardwareSummaryMetrics.map { $0.rawValue }.sorted().map { .string($0) })
+            },
+            isValid: { value in
+                guard case let .array(items) = value, !items.isEmpty else { return false }
+                return items.allSatisfy { item in
+                    guard case let .string(raw) = item else { return false }
+                    return HardwareSummaryMetric(rawValue: raw) != nil
+                }
+            },
+            write: { value, store in
+                guard case let .array(items) = value else { return }
+                let metrics = Set(items.compactMap { item -> HardwareSummaryMetric? in
+                    guard case let .string(raw) = item else { return nil }
+                    return HardwareSummaryMetric(rawValue: raw)
+                })
+                store.setEnabledHardwareSummaryMetrics(metrics)
+            })
     }
 }

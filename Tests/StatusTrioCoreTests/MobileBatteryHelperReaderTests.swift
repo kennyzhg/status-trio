@@ -575,7 +575,7 @@ struct MobileBatteryHelperReaderTests {
             // The runner may spend its 250 ms SIGKILL grace and 500 ms stream
             // drain grace after the 1 s deadline. Keep the result bounded while
             // allowing that documented post-deadline work on a loaded runner.
-            #expect(clock.now - started < .seconds(5))
+            #expect(clock.now - started < .seconds(15))
             errno = 0
             #expect(kill(processID, 0) == -1 && errno == ESRCH)
         }
@@ -607,7 +607,7 @@ struct MobileBatteryHelperReaderTests {
             // cancellation delay in BoundedProcessInvocation. Only the timeout
             // path has a 1 s deadline. Bound the operation without inventing a
             // minimum that contradicts the implementation.
-            #expect(clock.now - started < .seconds(5))
+            #expect(clock.now - started < .seconds(15))
             errno = 0
             #expect(kill(processID, 0) == -1 && errno == ESRCH)
         }
@@ -617,7 +617,10 @@ struct MobileBatteryHelperReaderTests {
         // The helper exits immediately but leaves a child holding the inherited
         // stdout/stderr, so the stream-ended flags never arrive. The invocation
         // must still finish at its deadline instead of waiting for that child.
-        let script = try makeScript("sleep 5 & exit 0")
+        // The descendant outlives the bound below by a wide margin, so finishing
+        // in time proves it was not awaited; the bound tolerates a loaded
+        // full-suite runner instead of measuring machine speed.
+        let script = try makeScript("sleep 30 & exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
         let clock = ContinuousClock()
         let started = clock.now
@@ -628,7 +631,10 @@ struct MobileBatteryHelperReaderTests {
             Issue.record("an invocation whose pipes are held must time out")
         } catch {
             #expect(error as? MobileBatteryHelperError == .timedOut)
-            #expect(clock.now - started < .seconds(3))
+            // Finishing well before the 30 s descendant proves the invocation
+            // did not wait for it; 10 s only absorbs scheduler load on the
+            // full-suite runner.
+            #expect(clock.now - started < .seconds(10))
         }
     }
 

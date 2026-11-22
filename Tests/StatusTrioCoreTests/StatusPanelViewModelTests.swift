@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import CoreAudio
 import XCTest
@@ -26,6 +27,31 @@ final class StatusPanelViewModelTests: XCTestCase {
         XCTAssertFalse(fixture.store.wifiNetworks.isActive)
 
         panel.stop()
+    }
+
+    /// @Published emits in willSet, so the style sink must apply the emitted
+    /// value. Re-reading the property there left the SwiftUI card surface on the
+    /// previous style until the panel was reopened.
+    func testPanelBackgroundStyleAppliesToCardSurfaceWithoutReopen() throws {
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        guard !reduce else { throw XCTSkip("Reduce Transparency forces solid") }
+
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+        panel.start()
+
+        fixture.settings.panelBackgroundStyle = .classicMaterial
+        XCTAssertEqual(
+            panel.effectivePanelBackgroundStyle,
+            PanelBackgroundStyle.renderStyle(for: .classicMaterial, reduceTransparency: false),
+            "material applies live")
+
+        fixture.settings.panelBackgroundStyle = .solid
+        XCTAssertEqual(
+            panel.effectivePanelBackgroundStyle,
+            PanelBackgroundStyle.renderStyle(for: .solid, reduceTransparency: false),
+            "switching to solid must update the card surface without reopening the panel")
     }
 
     func testIrrelevantSettingChangeDoesNotRemapThePanel() async throws {
@@ -251,6 +277,49 @@ final class StatusPanelViewModelTests: XCTestCase {
             publications.count,
             levels.count,
             "level-only readings must coalesce instead of publishing one per tick"
+        )
+    }
+
+    /// While a pointer gesture owns the volume slider, the store flags it so the
+    /// panel skips the 10 Hz level coalescer and publishes each step the slider
+    /// reports (30 Hz). Non-gesture readings still coalesce, covered above.
+    func testDraggingVolumeBypassesTheLevelCoalescer() async throws {
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        panel.start()
+        defer { panel.stop(); fixture.store.stop() }
+        fixture.store.start()
+        fixture.store.setPopoverVisible(true)
+
+        var publications: [Double] = []
+        var cancellables: Set<AnyCancellable> = []
+        panel.volumeControl.$volume
+            .dropFirst()
+            .sink { state in
+                if let scalar = state.scalar { publications.append(scalar) }
+            }
+            .store(in: &cancellables)
+
+        fixture.store.beginVolumeAdjustment()
+        defer { fixture.store.finishVolumeAdjustment() }
+        let levels = stride(from: 0.30, through: 0.79, by: 0.01).map { $0 }
+        for level in levels {
+            fixture.volume.send(
+                VolumeStatus(scalar: level, isMuted: false, deviceName: "Desk speakers")
+            )
+        }
+
+        let latest = try XCTUnwrap(levels.last)
+        let deadline = ContinuousClock.now + .seconds(3)
+        while panel.volume.scalar != latest, ContinuousClock.now < deadline {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(panel.volume.scalar, latest)
+        XCTAssertGreaterThanOrEqual(
+            publications.count,
+            levels.count - 1,
+            "a pointer drag must publish each step instead of coalescing to ~10 Hz"
         )
     }
 
@@ -886,6 +955,117 @@ final class StatusPanelViewModelTests: XCTestCase {
         }
         return condition()
     }
+
+    func testSliderColorOnlyChangeInvalidatesTheOpenPanel() {
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        panel.start()
+        defer { panel.stop(); fixture.store.stop() }
+
+        var panelChanges = 0
+        let observation = panel.objectWillChange.sink { panelChanges += 1 }
+        defer { observation.cancel() }
+        let custom = PanelLevelSliderColorSelection.custom(.white)
+
+        fixture.settings.panelLevelSliderColor = custom
+        XCTAssertEqual(panelChanges, 1, "a new slider color must update the panel immediately")
+
+        fixture.settings.panelLevelSliderColor = custom
+        XCTAssertEqual(panelChanges, 1, "an unchanged color must not invalidate the panel again")
+
+        fixture.settings.panelLevelSliderColor = .automatic
+        XCTAssertEqual(panelChanges, 2, "resetting the color must also update the panel immediately")
+    }
+
+    func testSliderThicknessSettingMirrorsIntoPanelModel() {
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+        panel.start()
+
+        XCTAssertFalse(panel.panelLevelSliderMatchesBrightnessThickness)
+        fixture.settings.panelLevelSliderMatchesBrightnessThickness = true
+        XCTAssertTrue(panel.panelLevelSliderMatchesBrightnessThickness)
+    }
+
+    /// The Settings switch drives the two weight tiers; the panel model must
+    /// mirror both so the environment values reach every panel view.
+    func testPanelTextWeightSettingsMirrorIntoPanelModel() throws {
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+        panel.start()
+
+        XCTAssertFalse(panel.statusPanelBoldTextEnabled)
+
+        fixture.settings.applyPanelBoldTextToggle(true)
+        XCTAssertTrue(panel.statusPanelBoldTextEnabled)
+        XCTAssertTrue(panel.statusPanelMediumTextEnabled)
+
+        fixture.settings.applyPanelBoldTextToggle(false)
+        XCTAssertFalse(panel.statusPanelBoldTextEnabled)
+        XCTAssertFalse(panel.statusPanelMediumTextEnabled)
+    }
+}
+
+/// Issue #369: clicking the *same* detail entry again closes that detail page
+/// (the side panel) while the main panel stays open; a different entry still
+/// switches pages.
+@MainActor
+struct DetailEntryToggleDismissTests {
+    @Test func clickingOpenHardwareEntryAgainClosesDetailToSummary() {
+        let fixture = PanelStoreFixture()
+        fixture.settings.setPopupSection(.hardwareMonitor, enabled: true)
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+
+        panel.showHardwareDetail(.cpu)
+        #expect(panel.route == .hardwareDetail(.cpu))
+
+        panel.showHardwareDetail(.cpu)
+        #expect(panel.route == .summary)
+
+        // After closing, a different hardware card still switches pages.
+        panel.showHardwareDetail(.memory)
+        #expect(panel.route == .hardwareDetail(.memory))
+    }
+
+    @Test func clickingOpenBatteryEntryAgainClosesDetailToSummary() {
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+
+        panel.showBatteryPage()
+        #expect(panel.route == .battery)
+        panel.showBatteryPage()
+        #expect(panel.route == .summary)
+    }
+
+    @Test func clickingOpenWiFiEntryAgainClosesDetailButWiredIsASwitch() {
+        let fixture = PanelStoreFixture()
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+
+        panel.showWiFiPage(showsDetailsInitially: true)
+        #expect(panel.route == .wifi)
+        panel.showWiFiPage(showsDetailsInitially: true)
+        #expect(panel.route == .summary)
+
+        panel.showWiredPage()
+        #expect(panel.route == .ethernet)
+    }
+
+    @Test func clickingOpenInputSourceEntryAgainClosesDetailToSummary() {
+        let fixture = PanelStoreFixture()
+        fixture.settings.setPopupSection(.inputSource, enabled: true)
+        let panel = fixture.makePanel()
+        defer { panel.stop(); fixture.store.stop() }
+
+        panel.showInputSourcePage()
+        #expect(panel.route == .inputSource)
+        panel.showInputSourcePage()
+        #expect(panel.route == .summary)
+    }
 }
 
 @MainActor
@@ -966,7 +1146,7 @@ struct AirPodsDiscoveryTriggerTests {
         fixture.settings.setPopupSection(.volume, enabled: false)
         #expect(
             fixture.settings.visiblePopupSections
-                == [.battery, .network, .bluetooth]
+                == [.battery, .quickActions, .network, .bluetooth]
         )
         let panel = fixture.makePanel()
         panel.start()
@@ -1045,6 +1225,7 @@ final class PanelStoreFixture {
     let volume = PanelVolumeMonitor()
     let input = PanelInputMonitor()
     let popupSleeper: ManualEventSleeper
+    let wakeCenter = NotificationCenter()
     let scanner = PanelWiFiScanner()
     let vpn = PanelVPNMonitor()
     let updateScheduler = ManualPanelUpdateScheduler()
@@ -1060,6 +1241,8 @@ final class PanelStoreFixture {
         outputDevices: [AudioOutputDevice] = [],
         pairedDevices: [BluetoothDevice] = [],
         wifiScanner: PanelWiFiScanner = PanelWiFiScanner(),
+        hardwareMetrics: HardwareMetricsService = HardwareMetricsService(),
+        topApps: TopAppsService = TopAppsService(automaticScheduling: false),
         isDevelopmentBuild: Bool = true
     ) {
         let suiteName = "StatusPanelViewModelTests.\(UUID().uuidString)"
@@ -1104,7 +1287,10 @@ final class PanelStoreFixture {
             volumeMonitor: volume,
             inputMonitor: input,
             popupDebounceSleep: { duration in await sleeper.sleep(duration) },
+            wakeNotificationCenter: wakeCenter,
             powerSampling: PowerSamplingService(reader: { _ in .empty }),
+            hardwareMetrics: hardwareMetrics,
+            topApps: topApps,
             wifiNetworks: WiFiNetworkController(scanWorker: wifiScanner),
             bluetoothDevices: bluetoothDevices,
             bluetoothListeningModes: bluetoothListeningModes,
