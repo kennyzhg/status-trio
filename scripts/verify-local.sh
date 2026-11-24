@@ -116,12 +116,16 @@ else
     run_step "Gitee mirror scripts (offline)" bash scripts/test-gitee-mirror.sh
     run_step "Mobile battery bundle" bash scripts/verify-mobile-battery-bundle.sh dist/StatusTrio.app
     run_step "Privileged helper bundle" bash scripts/verify-privileged-helper-bundle.sh dist/StatusTrio.app
+    if [[ -f "$ROOT/scripts/check-info-plist-version-sync.sh" ]]; then
+        run_step "Info.plist version sync" bash scripts/check-info-plist-version-sync.sh
+    fi
 
     NATIVE_CHECKS=(
         "scripts/test-powerui-charge-restore.sh"
         "scripts/test-macos13-deployment-contract-regressions.sh"
         "scripts/test-macos13-deployment-contract.sh"
         "scripts/test-appcast-minimum-system-version.sh"
+        "scripts/test-info-plist-version-sync.sh"
         "scripts/test-macos13-bundle-contract.sh"
         "scripts/test-app-icon-contract.sh"
         "scripts/test-privileged-helper-bundle-contract.sh"

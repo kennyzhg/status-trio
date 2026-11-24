@@ -340,7 +340,7 @@ extension SettingsStore {
         appearance: StatusIconAppearance,
         inputSourceMarkerStyle: InputSourceMarkerStyle,
         bottomIndicatorSource: BottomIndicatorSource,
-        bottomIndicatorMetric: HardwareMonitorMetric = .cpuUsage
+        bottomIndicatorMetric: BottomIndicatorMetric = .cpuUsage
     ) -> IconSlotBindingsV1 {
         let derived = IconSlotBindingsV1.migrated(
             from: Self.iconConfiguration(

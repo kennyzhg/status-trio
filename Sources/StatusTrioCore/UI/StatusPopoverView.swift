@@ -373,9 +373,12 @@ struct StatusPopoverView: View {
                                        },
                                        memoryRingDisplayMode: panel.memoryRingDisplayMode,
                                        ssdRingDisplayMode: panel.ssdRingDisplayMode,
+                                       ssdIncludeExternalInPercent: panel.hardwareSSDIncludeExternalInPercent,
+                                       ssdSelectedExternalPaths: panel.hardwareSSDExternalVolumePaths,
                                        cpuRingCenterContent: panel.cpuRingCenterContent,
                                        gpuRingCenterContent: panel.gpuRingCenterContent,
                                        hardwareTemperatureMonitoringEnabled: panel.hardwareTemperatureMonitoringEnabled,
+                                       hardwareRingSplitGapProgress: panel.hardwareRingSplitGapProgress,
                                        summaryMetrics: panel.enabledHardwareSummaryMetrics)
         case .weather:
             WeatherStatusView(

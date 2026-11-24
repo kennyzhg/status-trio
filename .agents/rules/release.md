@@ -22,5 +22,13 @@ generation, signing, notarization, or versioning.
   development verification.
 - Developer ID plus notarization is the signed path; Ad-hoc is a fallback and
   must be reported honestly. Never read or print credentials.
+- Every release must update `Support/Info.plist` (`CFBundleShortVersionString`
+  and `CFBundleVersion`) to the version/build being published, in the same
+  change that writes `appcast.xml`. It is the default build's version source;
+  `scripts/check-info-plist-version-sync.sh` (run by `verify-local.sh full`)
+  fails on drift. Its default mode allows a pending version that leads the
+  published appcast but rejects a regression or a reused build number with a
+  different marketing version; publishing/release housekeeping uses `--exact`
+  to require the published values.
 
 See `docs/github-actions-release.md` and `docs/macos13-compatibility-verification.md`.
