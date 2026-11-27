@@ -215,11 +215,18 @@ enum SettingsSemanticCatalog {
             d.accessPolicy = .transferable
             d.provider = "core"
         },
-        pref("panel.modules.enabled", "启用的面板模块", "panel", .set, "状态面板中启用的模块集合及顺序。") { d in
+        pref("panel.modules.enabled", "启用的面板模块", "panel", .set, "状态面板中启用的模块集合及顺序。整体替换集合；开发 Profile 请改用逐模块开关或 add/remove，以免关掉未列出的模块。") { d in
             d.uiPath = "设置 › 状态面板 › 模块"
             d.optionsProvider = "panel.sections"
             d.storageKey = "enabledPopupSections"
-            d.accessPolicy = .transferable
+            // 整体替换会删除未列出的模块；保留 transfer 能力，但不允许开发 Profile 自动替换。
+            d.accessPolicy = SettingsAccessPolicy(
+                uiAccessible: true,
+                developmentProfile: false,
+                transferable: true,
+                externalRead: true,
+                externalWrite: false
+            )
             d.provider = "core"
         },
 
@@ -240,6 +247,19 @@ enum SettingsSemanticCatalog {
             d.options = [opt("single", "单环"), opt("dual", "双环")]
             d.defaultValue = s("single")
             d.effectiveWhen = .equals(preference: "icon.outerRing.source", value: s("hardwareMonitor"))
+            d.accessPolicy = .profileSafe
+            d.provider = "core"
+        },
+        pref("icon.outerRing.hardware.topContent", "硬件外环顶部标识", "icon", .enumeration, "硬件外环顶部标识显示的内容（自动/隐藏/电量/充电/内存压力），供开发 Profile 把顶部标识直接置于要测试的状态。") { d in
+            d.uiPath = "设置 › 图标 › 硬件外环 › 顶部标识"
+            d.options = [
+                opt("automatic", "自动"), opt("hidden", "隐藏"),
+                opt("batteryPercentage", "电池电量"), opt("chargingIndicator", "充电指示"),
+                opt("memoryPressure", "内存压力"),
+            ]
+            d.defaultValue = s("automatic")
+            d.effectiveWhen = .equals(preference: "icon.outerRing.source", value: s("hardwareMonitor"))
+            d.storageKey = "hardwareRingConfigurationV1"
             d.accessPolicy = .profileSafe
             d.provider = "core"
         },
@@ -278,6 +298,11 @@ enum SettingsSemanticCatalog {
             d.storageKey = "enabledHardwareRingSlotsV1"
             d.accessPolicy = .profileSafe
             d.provider = "core"
+        },
+        pref("icon.outerRing.hardware.memoryPressureColors", "内存压力颜色", "icon", .map, "顶部标识与底部指示器共用的内存压力三档颜色（正常/警告/严重）；默认沿用历史绿/橙/红，改一处两处同时生效。") { d in
+            d.uiPath = "设置 › 图标 › 硬件外环 › 内存压力颜色"
+            d.storageKey = "hardwareRingConfigurationV1"
+            d.accessPolicy = describedNotWritable
         },
         pref("icon.center.source", "中间槽来源", "icon", .enumeration, "菜单栏与 Dock 共享的中间槽内容来源。") { d in
             d.uiPath = "设置 › 图标 › 中间来源"
@@ -653,7 +678,7 @@ enum SettingsSemanticCatalog {
             d.uiPath = "设置 › 电池 › 高耗能 App › 刷新间隔"
             d.unit = "s"; d.storageKey = "highEnergyAppsRefreshIntervalSeconds"; d.accessPolicy = .profileSafe; d.provider = "core"
         },
-        pref("battery.marker.onBattery", "电池百分比标记", "battery", .enumeration, "使用电池时电量环顶部的标记样式。") { d in
+        pref("battery.marker.onBattery", "使用电池时标记", "battery", .enumeration, "使用电池时电量环顶部的标记样式。") { d in
             d.uiPath = "设置 › 电池 › 标记 › 使用电池"
             d.options = [opt("percentage", "百分比"), opt("bolt", "闪电"), opt("plug", "插头"), opt("hidden", "隐藏")]
             d.storageKey = "batteryOnBatteryMarker"; d.accessPolicy = .profileSafe; d.provider = "core"
@@ -905,6 +930,7 @@ enum SettingsSemanticCatalog {
         pref("hardware.summaryMetrics", "启用的硬件摘要指标", "hardware", .set, "状态面板硬件摘要行启用的指标集合。") { d in
             d.uiPath = "设置 › 监控 › 摘要指标"; d.optionsProvider = "HardwareSummaryMetric"
             d.storageKey = "enabledHardwareSummaryMetricsV1"; d.accessPolicy = .profileSafe; d.provider = "core"
+            d.constraints = [SettingsConstraint(kind: .minimumCount, resolution: .reject, message: "至少保留一个硬件摘要指标。", min: 1)]
         },
         pref("hardware.metricColors", "硬件指标颜色", "hardware", .map, "各硬件指标的自定义颜色映射。") { d in
             d.uiPath = "设置 › 监控 › 指标颜色"; d.storageKey = "hardwareMonitorMetricColorsV1"; d.accessPolicy = describedNotWritable
@@ -918,7 +944,7 @@ enum SettingsSemanticCatalog {
         pref("icon.hardwareDiskRingColor", "硬件磁盘环颜色", "icon", .color, "硬件磁盘环的自定义颜色。") { d in
             d.uiPath = "设置 › 图标 › 磁盘环颜色"; d.storageKey = "hardwareDiskRingColorV1"; d.accessPolicy = describedNotWritable
         },
-        pref("icon.hardwareRingConfiguration", "硬件外环配置", "icon", .object, "硬件外环的结构化配置（布局/主副指标/顶部内容/颜色/覆盖项）；语义层另以嵌套 id 暴露常用字段。") { d in
+        pref("icon.hardwareRingConfiguration", "硬件外环配置", "icon", .object, "硬件外环的结构化配置（布局/主副指标/顶部内容/颜色/覆盖项）；含顶部标识与底部指示器共用的内存压力三档颜色（#398）；语义层另以嵌套 id 暴露常用字段。") { d in
             d.uiPath = "设置 › 图标 › 硬件外环"; d.storageKey = "hardwareRingConfigurationV1"; d.accessPolicy = describedNotWritable
         },
         pref("icon.slotBindings", "图标槽位绑定", "icon", .object, "图标各槽位的绑定配置（IconSlotBindingsV1 编码）。") { d in
